@@ -165,6 +165,8 @@ class Map:
             self.plane0 = rlew_decode(carmack_decode(fp.read(header[3])))
             fp.seek(header[1])
             self.plane1 = rlew_decode(carmack_decode(fp.read(header[4])))
+            self.width = 64
+            self.height = 64
 
     def __getitem__(self, item):
         """
@@ -173,23 +175,38 @@ class Map:
         :return: a pair of values corresponding to plane0 and plane1 data at given coordinate
         """
         x, y = item
-        offset = 2 * (x + 64 * y)
+        offset = 2 * (x + self.width * y)
         p0 = struct.unpack('<H', self.plane0[offset: offset + 2])[0]
         p1 = struct.unpack('<H', self.plane1[offset: offset + 2])[0]
         return p0, p1
 
-    def export(self, filename=None):
+    def export(self, filename=None, single_byte=True):
         """
-        Export the level data to a file containing a concatenation of the plane0 and plane1 data (output file should
-        be 16384 bytes long)
+        Export the level data to a file containing a concatenation of the plane0 and plane1 data
+        (output file should be 16384 bytes long if encoded in words or 8192 if encoded in single bytes)
         :param filename: name of the file to create
+        :param single_byte: if set, all words (16bits) from the original data will be represented as a single byte
+        (original Wolfenstein 3D data uses only one byte despite being encoded on 2 bytes)
         """
         if filename is None:
-            filename = '{}.map'.format(self.name.replace(' ', '_'))
+            filename = '{}.map'.format(self.name.replace(' ', ''))
         with open(filename, 'wb') as fp:
-            fp.write(self.plane0)
-            fp.write(self.plane1)
+            if single_byte:
+                fp.write(bytes([self.plane0[i] for i in range(0, len(self.plane0), 2)]))
+                fp.write(bytes([self.plane1[i] for i in range(0, len(self.plane1), 2)]))
+            else:
+                fp.write(self.plane0)
+                fp.write(self.plane1)
         fp.close()
+
+    def find_cell(self, values0=None, values1=None):
+        cells = []
+        for x in range(self.width):
+            for y in range(self.height):
+                v0, v1 = self[x, y]
+                if (values0 is None or v0 in values0) and (values1 is None or v1 in values1):
+                    cells.append((x, y))
+        return cells
 
 
 def make_wall_tileset(input_file="VSWAP.WL6", output_file="walls.ppm"):

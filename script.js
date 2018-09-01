@@ -54,10 +54,14 @@ let zIndex = new Array(pixelWidth);
  */
 let pressedKeys = {};
 /**
- * Map data for planes 0 and 1
- * @type {Uint8Array}
+ * 2D arrays containing map data for planes 0 and 1
+ * @type {Uint8Array[]}
  */
 let plane0, plane1;
+/**
+ * 2D array indicating if each cell of the map is blocking or not
+ */
+let plane2;
 /**
  * Counter of number of events being processed in setup
  * @type {number}
@@ -83,7 +87,14 @@ let pixels;
  * @type {boolean}
  */
 let isDrawing = false;
-
+/**
+ * Array of door timers for doors being active (opening, open or closing)
+ * The elements in the array are objects with attributes
+ * - x: x-coordinate of the door
+ * - y: y-coordinate of the door
+ * - t: counter since door was open
+ */
+let doorTimers = [];
 
 /**
  * Class representation of the bytes for a set of texture tiles
@@ -240,30 +251,6 @@ function Player(x, y, dx, dy) {
 
 
 /**
- * Returns the plane0 value of the map cell at given coordinates
- * @param x {number} x-coordinate of the cell
- * @param y {number} y-coordinate of the cell
- * @returns {number} plane0 value
- */
-function map0(x, y) {
-    let offset = 2 * (x + 64 * y);
-    return plane0[offset] + (plane0[offset + 1] << 8);
-}
-
-
-/**
- * Returns the plane1 value of the map cell at given coordinates
- * @param x {number} x-coordinate of the cell
- * @param y {number} y-coordinate of the cell
- * @returns {number} plane1 value
- */
-function map1(x, y) {
-    let offset = 2 * (x + 64 * y);
-    return plane1[offset] + (plane1[offset + 1] << 8);
-}
-
-
-/**
  * Asynchronously load a binary file
  * @param url {String} path to file
  * @param onload {function} callback to execute after loading
@@ -331,8 +318,18 @@ function loadLevel() {
         "maps/" + select.value + ".map",
         function() {
             let bytes = new Uint8Array(this.response);
-            plane0 = bytes.slice(0, 8192);
-            plane1 = bytes.slice(8192, 16384);
+            plane0 = [];
+            plane1 = [];
+            for (let i = 0; i < 64; i++) {
+                plane0.push(bytes.slice(64 * i, 64 * (i+1)));
+                plane1.push(bytes.slice(4096 + 64 * i, 4096 + 64 * (i+1)));
+            }
+            plane2 = [];
+            for (let i = 0; i < 64; i++) {
+                let line = Array(64);
+                line.fill(false);
+                plane2.push(line);
+            }
             setup();
         }
     );
@@ -346,23 +343,34 @@ function loadLevel() {
 function setup() {
     // setup things
     things = [];
-    for (let x = 0; x < 64; x++) {
-        for (let y = 0; y < 64; y++) {
-            let v = map1(x, y);
-            if (v === 19) {
+    for (let y = 0; y < 64; y++) {
+        for (let x = 0; x < 64; x++) {
+            let m0 = plane0[y][x];
+            let m1 = plane1[y][x];
+            if (m0 <= 63) {
+                // wall
+                plane2[y][x] = true;
+            }
+            if (m1 === 19) {
                 player = new Player(x + .5, y + .5, 0, -1);
                 break;
-            } else if (v === 20) {
+            } else if (m1 === 20) {
                 player = new Player(x + .5, y + .5, 1, 0);
                 break;
-            } else if (v === 21) {
+            } else if (m1 === 21) {
                 player = new Player(x + .5, y + .5, 0, 1);
                 break;
-            } else if (v === 22) {
+            } else if (m1 === 22) {
                 player = new Player(x + .5, y + .5, -1, 0);
                 break;
-            } else if (v >= 23 && v <= 74) {
-                things.push(new Prop(x + .5, y + .5, v - 21));
+            } else if (m1 >= 23 && m1 <= 74) {
+                // props
+                things.push(new Prop(x + .5, y + .5, m1 - 21));
+                if ([24, 25, 26, 28, 30, 31, 33, 34, 35, 36, 38, 39, 40, 41, 45, 58, 59, 60, 62, 63, 67, 68, 69,
+                    71, 73].indexOf(m1) >= 0) {
+                    // blocking prop
+                    plane2[y][x] = true;
+                }
             }
         }
     }
@@ -434,8 +442,113 @@ function drawWalls() {
             rdy = -rdy;
         }
 
-        while (map0(pix, piy) >= 64) {
-            // move through map until hitting a non-empty cell
+        let m0;
+        let wx, wy; // coordinates of the wall hit by the ray
+        let tx;     // position on the wall tile where the ray hit
+        let textureIndex;   // index of tile to display
+
+        while (true) {
+            m0 = plane0[piy][pix];
+            if (m0 <= 63) {
+                // hit a wall
+                if (pfy < 1) {
+                    // NS wall
+                    textureIndex = 2 * m0 - 1;
+                    wx = stepx < 0 ? pix + 1 : pix;
+                    wy = stepy < 0 ? piy + pfy : piy + 1 - pfy;
+                    if (stepy * stepx > 0) {
+                        // fix texture orientation depending on direction
+                        tx = 1 - pfy;
+                    } else {
+                        tx = pfy;
+                    }
+                } else {
+                    // EW wall
+                    textureIndex = 2 * m0 - 2;
+                    wx = stepx < 0 ? pix + pfx : pix + 1 - pfx;
+                    wy = stepy < 0 ? piy + 1 : piy;
+                    if (stepx * stepy < 0) {
+                        // fix texture orientation depending on direction
+                        tx = 1 - pfx;
+                    } else {
+                        tx = pfx;
+                    }
+                }
+                break;
+            } else if (m0 <= 101) {
+                // hit a door
+                if (m0 % 2 === 0) {
+                    // NS door
+                    if (.5 * rdy <= pfy * rdx) {
+                        // hit the door
+                        let dt = .5 / rdx;
+                        t += dt;
+                        pfy -= dt * rdy;
+                        wx = pix + .5;
+                        wy = stepy < 0 ? piy + pfy : piy + 1 - pfy;
+                        switch (m0) {
+                            case 90:
+                                textureIndex = 99;
+                                break;
+                            case 92:
+                                textureIndex = 105;
+                                break;
+                            case 94:
+                                textureIndex = 105;
+                                break;
+                            case 100:
+                                textureIndex = 103;
+                                break;
+                        }
+                        tx = stepy < 0 ? pfy: 1 - pfy;
+                    } else {
+                        // hit the side wall
+                        let dt = pfy / rdy;
+                        t += dt;
+                        pfx -= dt * rdx;
+                        wx = stepx < 0 ? pix + 1 - dt * rdx: pix + dt * rdx;
+                        wy = stepy < 0 ? piy : piy + 1;
+                        textureIndex = 100;
+                        tx = stepx < 0 ? 1 - dt * rdx: dt * rdx;
+                    }
+                } else {
+                    // EW door
+                    if (.5 * rdx <= pfx * rdy) {
+                        // hit the door
+                        let dt = .5 / rdy;
+                        t += dt;
+                        pfx -= dt * rdx;
+                        wy = piy + .5;
+                        wx = stepx < 0 ? pix + pfx : pix + 1 - pfx;
+                        switch (m0) {
+                            case 91:
+                                textureIndex = 98;
+                                break;
+                            case 93:
+                                textureIndex = 104;
+                                break;
+                            case 95:
+                                textureIndex = 104;
+                                break;
+                            case 101:
+                                textureIndex = 102;
+                                break;
+                        }
+                        tx = stepx < 0 ? pfx: 1 - pfx;
+                    } else {
+                        // hit the side wall
+                        let dt = pfx / rdx;
+                        t += dt;
+                        pfy -= dt * rdy;
+                        wy = stepy < 0 ? piy + 1 - dt * rdy: piy + dt * rdy;
+                        wx = stepx < 0 ? pix : pix + 1;
+                        textureIndex = 101;
+                        tx = stepy < 0 ? 1 - dt * rdy: dt * rdy;
+                    }
+                }
+                break;
+            }
+            // move through map until hitting a wall
             if (pfx * rdy <= pfy * rdx) {
                 // move to next cell horizontally
                 let dt = pfx / rdx;
@@ -453,31 +566,9 @@ function drawWalls() {
             }
         }
 
-        zIndex[i] = t;
         let h = wallHeight / t; // height of the line representing the wall on the current column
-        let wx, wy; // coordinates of the wall hit by the ray
-        let tx;     // position on the wall tile where the ray hit
-        let textureIndex;   // index of tile to display
-        // each texture tile has two variants depending on the axis of the wall, to simulate shadows
-        if (pfy < 1) {
-            textureIndex = 2 * map0(pix, piy) - 1;
-            wx = stepx < 0 ? pix + 1 : pix;
-            wy = stepy < 0 ? piy + pfy : piy + 1 - pfy;
-            if (stepy * stepx > 0) {
-                // fix texture orientation depending on direction
-                pfy = 1 - pfy;
-            }
-            tx = pfy;
-        } else {
-            textureIndex = 2 * map0(pix, piy) - 2;
-            wx = stepx < 0 ? pix + pfx : pix + 1 - pfx;
-            wy = stepy < 0 ? piy + 1 : piy;
-            if (stepx * stepy < 0) {
-                // fix texture orientation depending on direction
-                pfx = 1 - pfx;
-            }
-            tx = pfx;
-        }
+        zIndex[i] = t;
+
         // draw pixels in current column
         for (let j = 0; j < pixelHeight; j++) {
             if (j <= pixelHeight / 2 - h) {
@@ -541,29 +632,25 @@ function drawThings() {
  * @returns {boolean} whether the location is valid for the player
  */
 function isValidPosition(x, y) {
-    function check(x, y) {
-        let fy = y % 1;
-        y = ~~y;
-        if (map0(x, y) < 64) {
-            return false;
-        }
-        if (fy < player.radius && map0(x, y - 1) < 64) {
-            return false;
-        } else if (fy > 1 - player.radius && map0(x, y+1) < 64) {
-            return false;
-        }
-        return true;
-    }
+    let r = player.radius;
     let fx = x % 1;
     x = ~~x;
-    if (!check(x, y)) {
-        return false;
+    let fy = y % 1;
+    y = ~~y;
+
+    if (plane2[y][x]) return false;
+    if (fx < r) {
+        if (plane2[y][x - 1]) return false;
+        if (fy < r && plane2[y - 1][x - 1]) return false;
+        if (fy > 1 - r && plane2[y + 1][x - 1]) return false;
     }
-    if (fx < player.radius && !check(x - 1, y)) {
-        return false;
-    } else if (fx > 1 - player.radius && !check(x + 1, y)) {
-        return false;
+    if (fx > 1 - r) {
+        if (plane2[y][x + 1]) return false;
+        if (fy < r && plane2[y - 1][x + 1]) return false;
+        if (fy > 1 - r && plane2[y + 1][x + 1]) return false;
     }
+    if (fy < r && plane2[y - 1][x]) return false;
+    if (fy > 1 - r && plane2[y + 1][x]) return false;
     return true;
 }
 
