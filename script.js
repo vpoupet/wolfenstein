@@ -17,7 +17,7 @@ let zoom = 2;
  * Rendered size of a wall
  * @type {number}
  */
-let wallHeight = 125;
+let wallHeight = 80;
 /**
  * Representation of the player character
  * @type {Player}
@@ -94,7 +94,7 @@ let isDrawing = false;
  * - y: y-coordinate of the door
  * - t: counter since door was open
  */
-let doorTimers = [];
+let doorTimers;
 
 /**
  * Class representation of the bytes for a set of texture tiles
@@ -221,7 +221,7 @@ function Player(x, y, dx, dy) {
      * Field of vision
      * @type {number}
      */
-    this.fov = 0.7;
+    this.fov = 1;
 
     /**
      * Move forward
@@ -343,26 +343,29 @@ function loadLevel() {
 function setup() {
     // setup things
     things = [];
+    doorTimers = [];
     for (let y = 0; y < 64; y++) {
         for (let x = 0; x < 64; x++) {
+            // structural
             let m0 = plane0[y][x];
-            let m1 = plane1[y][x];
             if (m0 <= 63) {
                 // wall
                 plane2[y][x] = true;
+            } else if (90 <= m0 && m0 <= 101) {
+                // door
+                plane2[y][x] = true;
             }
+
+            // entities
+            let m1 = plane1[y][x];
             if (m1 === 19) {
                 player = new Player(x + .5, y + .5, 0, -1);
-                break;
             } else if (m1 === 20) {
                 player = new Player(x + .5, y + .5, 1, 0);
-                break;
             } else if (m1 === 21) {
                 player = new Player(x + .5, y + .5, 0, 1);
-                break;
             } else if (m1 === 22) {
                 player = new Player(x + .5, y + .5, -1, 0);
-                break;
             } else if (m1 >= 23 && m1 <= 74) {
                 // props
                 things.push(new Prop(x + .5, y + .5, m1 - 21));
@@ -397,6 +400,17 @@ function draw() {
     // draw visible game elements
     drawWalls();
     drawThings();
+
+    // update door timers
+    for (let i = 0; i < doorTimers.length; i++) {
+        let timer = doorTimers[i];
+        timer.t += 1;
+        if (timer.t >= 64) {
+            plane2[timer.y][timer.x] = !plane2[timer.y][timer.x];
+            doorTimers.splice(i, 1);
+            i -= 1;
+        }
+    }
 
     context.putImageData(imageData, 0, 0);
     // call the draw function on next frame
@@ -477,13 +491,33 @@ function drawWalls() {
                 break;
             } else if (m0 <= 101) {
                 // hit a door
+
+                // check if door is (partially) open
+                let door_shift = 0;
+                let timer = doorTimers.find(function(obj) {
+                    return obj.x === pix && obj.y === piy;
+                });
+                if (timer) {
+                    door_shift = timer.t / 64;
+                }
+
                 if (m0 % 2 === 0) {
-                    // NS door
-                    if (.5 * rdy <= pfy * rdx) {
+                    // NS door (ray should be on vertical side so pfx == 1)
+                    if (.5 * rdy >= pfy * rdx) {
+                        // hit the side wall
+                        let dt = pfy / rdy;
+                        t += dt;
+                        pfx -= dt * rdx;
+                        wx = stepx < 0 ? pix + pfx: pix + 1 - pfx;
+                        wy = stepy < 0 ? piy: piy + 1;
+                        textureIndex = 100;
+                        tx = stepx < 0 ? 1 - dt * rdx: dt * rdx;
+                    } else {
                         // hit the door
                         let dt = .5 / rdx;
                         t += dt;
                         pfy -= dt * rdy;
+                        pfx = .5;
                         wx = pix + .5;
                         wy = stepy < 0 ? piy + pfy : piy + 1 - pfy;
                         switch (m0) {
@@ -500,20 +534,21 @@ function drawWalls() {
                                 textureIndex = 103;
                                 break;
                         }
-                        tx = stepy < 0 ? pfy: 1 - pfy;
-                    } else {
-                        // hit the side wall
-                        let dt = pfy / rdy;
-                        t += dt;
-                        pfx -= dt * rdx;
-                        wx = stepx < 0 ? pix + 1 - dt * rdx: pix + dt * rdx;
-                        wy = stepy < 0 ? piy : piy + 1;
-                        textureIndex = 100;
-                        tx = stepx < 0 ? 1 - dt * rdx: dt * rdx;
+                        tx = stepy < 0 ? pfy : 1 - pfy;
+                        tx -= door_shift;
                     }
                 } else {
                     // EW door
-                    if (.5 * rdx <= pfx * rdy) {
+                    if (.5 * rdx >= pfx * rdy) {
+                        // hit the side wall
+                        let dt = pfx / rdx;
+                        t += dt;
+                        pfy -= dt * rdy;
+                        wy = stepy < 0 ? piy + 1 - dt * rdy: piy + dt * rdy;
+                        wx = stepx < 0 ? pix : pix + 1;
+                        textureIndex = 101;
+                        tx = stepy < 0 ? 1 - dt * rdy: dt * rdy;
+                    } else {
                         // hit the door
                         let dt = .5 / rdy;
                         t += dt;
@@ -535,15 +570,7 @@ function drawWalls() {
                                 break;
                         }
                         tx = stepx < 0 ? pfx: 1 - pfx;
-                    } else {
-                        // hit the side wall
-                        let dt = pfx / rdx;
-                        t += dt;
-                        pfy -= dt * rdy;
-                        wy = stepy < 0 ? piy + 1 - dt * rdy: piy + dt * rdy;
-                        wx = stepx < 0 ? pix : pix + 1;
-                        textureIndex = 101;
-                        tx = stepy < 0 ? 1 - dt * rdy: dt * rdy;
+                        tx -=  door_shift;
                     }
                 }
                 break;
@@ -696,10 +723,35 @@ function setupPage() {
     pixels = imageData.data;
 
     // events
-    document.onkeydown = e => { pressedKeys[e.key] = true; };
-    document.onkeyup = e => { pressedKeys[e.key] = false; };
+    document.onkeydown = function(e) { pressedKeys[e.key] = true; };
+    document.onkeyup = function(e) { pressedKeys[e.key] = false; };
+    document.onkeypress = function(e) {
+        if (e.key === " ") {
+            activate();
+        }
+    }
 }
 
+
+function activate() {
+    let x = ~~player.x;
+    let y = ~~player.y;
+    if (Math.abs(player.dx) >= Math.abs(player.dy)) {
+        x += player.dx >= 0 ? 1 : -1;
+    } else {
+        y += player.dy >= 0 ? 1 : -1;
+    }
+    let m0 = plane0[y][x];
+    let m1 = plane1[y][x];
+    if (90 <= m0 && m0 <= 101) {
+        let timer = doorTimers.find(function(obj) {
+            return obj.x === x && obj.y === y;
+        });
+        if (!timer) {
+            doorTimers.push({x: x, y: y, t: 0});
+        }
+    }
+}
 
 setupPage();
 loadResources();
