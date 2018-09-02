@@ -39,6 +39,10 @@ let wallTextures;
  */
 let surfaceTextures;
 /**
+ * Whether surface textures (ceiling and floor) should be displayed)
+ */
+let surfaceTexturesOn = true;
+/**
  * TileSet instance containing textures for the props
  * @type {TileSet}
  */
@@ -398,6 +402,12 @@ function draw() {
     if (pressedKeys["ArrowDown"]) { player.move(-player.speed) }
 
     // draw visible game elements
+    let bgWidth = pixelWidth * zoom;
+    let bgHeight = pixelHeight * zoom / 2;
+    context.fillStyle = 'rgb(56, 56, 56)';
+    context.fillRect(0, 0, bgWidth, bgHeight);
+    context.fillStyle = 'rgb(113, 113, 113)';
+    context.fillRect(0, bgHeight, bgWidth, bgHeight);
     drawWalls();
     drawThings();
 
@@ -426,191 +436,215 @@ function draw() {
 function drawWalls() {
     for (let i = 0; i < pixelWidth; i++) {
         // cast a ray for each screen column
-        let shift = player.fov * (2 * i - pixelWidth) / pixelWidth;    // current column position on the camera plane
-        let rdx = player.dx - shift * player.dy;  // direction of the ray
+
+        // current column position on the camera plane
+        let shift = player.fov * (2 * i - pixelWidth) / pixelWidth;
+        // direction of the ray
+        let rdx = player.dx - shift * player.dy;
         let rdy = player.dy + shift * player.dx;
-        let sx = player.x + rdx;  // screen point coordinates in the direction of the ray
+        // screen point coordinates in the direction of the ray
+        let sx = player.x + rdx;
         let sy = player.y + rdy;
-        let pix = ~~player.x;     // pix and piy are integers representing the cell position of the ray on the map
-        let piy = ~~player.y;     // (starting from the player position)
-        let pfx, pfy;       // pfx and pfy are the remaining fractional distance from the ray position to the next
-                            // cell (0 < pfx, pfy <= 1)
-        let stepx, stepy;   // direction in which the ray moves along each axis
-        let t = 0;          // total time traveled by the ray
-
-        // setup algorithm variables depending on ray directions
-        if (rdx >= 0) {
-            pfx = 1 - (player.x % 1);
-            stepx = 1;
-        } else {
-            pfx = (player.x % 1);
-            stepx = -1;
-            rdx = -rdx;
+        // direction in which the ray moves along each axis
+        let stepx = rdx >= 0 ? 1 : -1;
+        let stepy = rdy >= 0 ? 1 : -1;
+        // take absolute values of ray direction
+        rdx = stepx * rdx;
+        rdy = stepy * rdy;
+        // cell position of the ray on the map (starting from the player position)
+        let cx = ~~player.x;
+        let cy = ~~player.y;
+        // remaining fractional distance from the ray position to the next cell (0 < rfx, rfy <= 1)
+        let rfx = stepx > 0 ? 1 - (player.x % 1) : player.x % 1;
+        if (rfx === 0) {
+            rfx = 1;
+            cx += stepx;
         }
-        if (rdy >= 0) {
-            pfy = 1 - (player.y % 1);
-            stepy = 1;
-        } else {
-            pfy = (player.y % 1);
-            stepy = -1;
-            rdy = -rdy;
+        let rfy = stepy > 0 ? 1 - (player.y % 1) : player.y % 1;
+        if (rfy === 0) {
+            rfy = 1;
+            cy += stepy;
         }
 
+        // location of the ray collision on a solid surface
+        let rx, ry;
+        // total time traveled by the ray
+        let t = 0;
+        // plane0 value of the cell visited by the ray
         let m0;
-        let wx, wy; // coordinates of the wall hit by the ray
-        let tx;     // position on the wall tile where the ray hit
-        let textureIndex;   // index of tile to display
+        // coordinate on the wall tile where the ray hit (0 <= tx <= 1)
+        let tx;
+        // index of tile to display
+        let textureIndex;
 
         while (true) {
-            m0 = plane0[piy][pix];
+            m0 = plane0[cy][cx];
             if (m0 <= 63) {
                 // hit a wall
-                if (pfy < 1) {
+                if (rfx === 1) {
                     // NS wall
                     textureIndex = 2 * m0 - 1;
-                    wx = stepx < 0 ? pix + 1 : pix;
-                    wy = stepy < 0 ? piy + pfy : piy + 1 - pfy;
-                    if (stepy * stepx > 0) {
-                        // fix texture orientation depending on direction
-                        tx = 1 - pfy;
-                    } else {
-                        tx = pfy;
-                    }
+                    // fix texture orientation depending on ray direction
+                    tx = stepx * stepy > 0 ? 1 - rfy : rfy;
                 } else {
                     // EW wall
                     textureIndex = 2 * m0 - 2;
-                    wx = stepx < 0 ? pix + pfx : pix + 1 - pfx;
-                    wy = stepy < 0 ? piy + 1 : piy;
-                    if (stepx * stepy < 0) {
-                        // fix texture orientation depending on direction
-                        tx = 1 - pfx;
-                    } else {
-                        tx = pfx;
-                    }
+                    // fix texture orientation depending on ray direction
+                    tx = stepx * stepy < 0 ? 1 - rfx : rfx;
                 }
                 break;
             } else if (m0 <= 101) {
                 // hit a door
 
-                // check if door is (partially) open
+                // check if door has an associated timer
                 let door_shift = 0;
-                let timer = doorTimers.find(function(obj) {
-                    return obj.x === pix && obj.y === piy;
-                });
-                if (timer) {
-                    door_shift = timer.t / 64;
+                let timer = doorTimers.find(function(obj) { return obj.x === cx && obj.y === cy; });
+                if (timer) { door_shift = timer.t / 64; }
+
+                if (!plane2[cy][cx]) {
+                    door_shift = 1 - door_shift;
                 }
 
                 if (m0 % 2 === 0) {
-                    // NS door (ray should be on vertical side so pfx == 1)
-                    if (.5 * rdy >= pfy * rdx) {
-                        // hit the side wall
-                        let dt = pfy / rdy;
+                    // NS door
+                    if (rfx >= .5 && (rfx - .5) * rdy < rfy * rdx) {
+                        // ray hits the central door line
+                        let dt = (rfx - .5) / rdx;
                         t += dt;
-                        pfx -= dt * rdx;
-                        wx = stepx < 0 ? pix + pfx: pix + 1 - pfx;
-                        wy = stepy < 0 ? piy: piy + 1;
-                        textureIndex = 100;
-                        tx = stepx < 0 ? 1 - dt * rdx: dt * rdx;
-                    } else {
-                        // hit the door
-                        let dt = .5 / rdx;
-                        t += dt;
-                        pfy -= dt * rdy;
-                        pfx = .5;
-                        wx = pix + .5;
-                        wy = stepy < 0 ? piy + pfy : piy + 1 - pfy;
-                        switch (m0) {
-                            case 90:
-                                textureIndex = 99;
-                                break;
-                            case 92:
-                                textureIndex = 105;
-                                break;
-                            case 94:
-                                textureIndex = 105;
-                                break;
-                            case 100:
-                                textureIndex = 103;
-                                break;
-                        }
-                        tx = stepy < 0 ? pfy : 1 - pfy;
+                        rfy -= dt * rdy;
+                        rfx = .5;
+                        tx = stepy > 0 ? 1 - rfy : rfy;
                         tx -= door_shift;
+                        if (tx >= 0) {
+                            // ray hits the door
+                            switch (m0) {
+                                case 90:
+                                    textureIndex = 99;
+                                    break;
+                                case 92:
+                                    textureIndex = 105;
+                                    break;
+                                case 94:
+                                    textureIndex = 105;
+                                    break;
+                                case 100:
+                                    textureIndex = 103;
+                                    break;
+                            }
+                            break;
+                        }
+                    }
+                    if (rfx * rdy >= rfy * rdx) {
+                        // hit the side wall
+                        let dt = rfy / rdy;
+                        t += dt;
+                        rfx -= dt * rdx;
+                        rfy = 1;
+                        cy += stepy;
+                        textureIndex = 100;
+                        tx = stepx > 0 ? 1 - rfx: rfx;
+                        break;
+                    } else {
+                        // pass through
+                        let dt = rfx / rdx;
+                        t += dt;
+                        rfy -= dt * rdy;
+                        rfx = 1;
+                        cx += stepx;
                     }
                 } else {
                     // EW door
-                    if (.5 * rdx >= pfx * rdy) {
-                        // hit the side wall
-                        let dt = pfx / rdx;
+                    if (rfy >= .5 && (rfy - .5) * rdx < rfx * rdy) {
+                        // ray hits the central door line
+                        let dt = (rfy - .5) / rdy;
                         t += dt;
-                        pfy -= dt * rdy;
-                        wy = stepy < 0 ? piy + 1 - dt * rdy: piy + dt * rdy;
-                        wx = stepx < 0 ? pix : pix + 1;
-                        textureIndex = 101;
-                        tx = stepy < 0 ? 1 - dt * rdy: dt * rdy;
-                    } else {
-                        // hit the door
-                        let dt = .5 / rdy;
-                        t += dt;
-                        pfx -= dt * rdx;
-                        wy = piy + .5;
-                        wx = stepx < 0 ? pix + pfx : pix + 1 - pfx;
-                        switch (m0) {
-                            case 91:
-                                textureIndex = 98;
-                                break;
-                            case 93:
-                                textureIndex = 104;
-                                break;
-                            case 95:
-                                textureIndex = 104;
-                                break;
-                            case 101:
-                                textureIndex = 102;
-                                break;
+                        rfx -= dt * rdx;
+                        rfy = .5;
+                        tx = stepx > 0 ? 1 - rfx : rfx;
+                        tx -= door_shift;
+                        if (tx >= 0) {
+                            // ray hits the door
+                            switch (m0) {
+                                case 91:
+                                    textureIndex = 98;
+                                    break;
+                                case 93:
+                                    textureIndex = 104;
+                                    break;
+                                case 95:
+                                    textureIndex = 104;
+                                    break;
+                                case 101:
+                                    textureIndex = 102;
+                                    break;
+                            }
+                            break;
                         }
-                        tx = stepx < 0 ? pfx: 1 - pfx;
-                        tx -=  door_shift;
+                    }
+                    if (rfy * rdx >= rfx * rdy) {
+                        // hit the side wall
+                        let dt = rfx / rdx;
+                        t += dt;
+                        rfy -= dt * rdy;
+                        rfx = 1;
+                        cx += stepx;
+                        textureIndex = 101;
+                        tx = stepy > 0 ? 1 - rfy: rfy;
+                        break;
+                    } else {
+                        // pass through
+                        let dt = rfy / rdy;
+                        t += dt;
+                        rfx -= dt * rdx;
+                        rfy = 1;
+                        cy += stepy;
                     }
                 }
-                break;
             }
-            // move through map until hitting a wall
-            if (pfx * rdy <= pfy * rdx) {
+            // move to the next cell
+            if (rfx * rdy <= rfy * rdx) {
                 // move to next cell horizontally
-                let dt = pfx / rdx;
+                let dt = rfx / rdx;
                 t += dt;
-                pfx = 1;
-                pix += stepx;
-                pfy -= dt * rdy;
+                rfx = 1;
+                cx += stepx;
+                rfy -= dt * rdy;
             } else {
                 // move to next cell vertically
-                let dt = pfy / rdy;
+                let dt = rfy / rdy;
                 t += dt;
-                pfy = 1;
-                piy += stepy;
-                pfx -= dt * rdx;
+                rfy = 1;
+                cy += stepy;
+                rfx -= dt * rdx;
             }
         }
 
+        // compute ray location
+        rx = stepx > 0 ? cx + 1 - rfx : cx + rfx;
+        ry = stepy > 0 ? cy + 1 - rfy : cy + rfy;
         let h = wallHeight / t; // height of the line representing the wall on the current column
         zIndex[i] = t;
 
         // draw pixels in current column
-        for (let j = 0; j < pixelHeight; j++) {
-            if (j <= pixelHeight / 2 - h) {
+        if (surfaceTexturesOn) {
+            for (let j = 0; j <= pixelHeight / 2 - h; j++) {
                 // draw ceiling and floor
                 let d = wallHeight / (pixelHeight / 2 - j);
-                let fx = sx + (wx - sx) * (d - 1) / (t - 1);
-                let fy = sy + (wy - sy) * (d - 1) / (t - 1);
+                let fx = sx + (rx - sx) * (d - 1) / (t - 1);
+                let fy = sy + (ry - sy) * (d - 1) / (t - 1);
                 paintPixel(i, j, surfaceTextures, fx % 1, fy % 1, 1);
                 paintPixel(i, pixelHeight - j, surfaceTextures, fx % 1, fy % 1, 0);
-            } else if (j > pixelHeight / 2 + h) {
-                break;
-            } else {
-                // draw wall
-                paintPixel(i, j, wallTextures, tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
             }
+        } else {
+            for (let j = 0; j <= pixelHeight / 2 - h; j++) {
+                // draw ceiling and floor (plain color, as in original game)
+                drawPixel(i, j, 56, 56, 56);
+                drawPixel(i, pixelHeight - j, 113, 113, 113);
+            }
+        }
+        for (let j = -~~( -pixelHeight / 2 + h); j <= pixelHeight / 2 + h; j++) {
+            // draw wall
+            paintPixel(i, j, wallTextures, tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
         }
     }
 }
@@ -708,6 +742,19 @@ function paintPixel(x, y, tileSet, tx, ty, ti) {
 }
 
 
+function drawPixel(x, y, r, g, b) {
+    for (let i = 0; i < zoom; i++) {
+        for (let j = 0; j < zoom; j++) {
+            let pixelOffset = 4 * (pixelWidth * zoom * (zoom * y + j) + zoom * x + i);
+            pixels[pixelOffset] = r;
+            pixels[pixelOffset + 1] = g;
+            pixels[pixelOffset + 2] = b;
+            pixels[pixelOffset + 3] = 255;
+        }
+    }
+}
+
+
 /**
  * Prepares the necessary HTML elements on the page:
  * - the canvas and the underlying pixel buffer
@@ -733,6 +780,9 @@ function setupPage() {
 }
 
 
+/**
+ * Activates a cell in front of the player (open/close door, push secret wall)
+ */
 function activate() {
     let x = ~~player.x;
     let y = ~~player.y;
@@ -752,6 +802,46 @@ function activate() {
         }
     }
 }
+
+
+/**
+ * Toggles between 320 x 200 (zoom x2) and 640 x 400 (zoom x1) resolutions
+ */
+function toggleResolution() {
+    let button = document.getElementById("resolutionButton");
+    button.disabled = true;
+    if (zoom === 1) {
+        pixelHeight = 200;
+        pixelWidth = 320;
+        zoom = 2;
+        wallHeight = 80;
+        button.innerHTML = "320 x 200";
+    } else {
+        pixelHeight = 400;
+        pixelWidth = 640;
+        zoom = 1;
+        wallHeight = 160;
+        button.innerHTML = "640 x 400";
+    }
+    button.disabled = false;
+}
+
+
+/**
+ * Toggles ceiling and floor textures on or off
+ */
+function toggleSurfaceTextures() {
+    let button = document.getElementById("surfaceButton");
+    button.disabled = true;
+    surfaceTexturesOn = !surfaceTexturesOn;
+    if (surfaceTexturesOn) {
+        button.innerHTML = "On";
+    } else {
+        button.innerHTML = "Off";
+    }
+    button.disabled = false;
+}
+
 
 setupPage();
 loadResources();

@@ -7,7 +7,8 @@
     <body>
         <canvas id="game_view"></canvas>
         <br />
-        <select id="level_select" onchange="loadLevel()">
+        <h3>Settings</h3>
+        Level select: <select id="level_select" onchange="loadLevel()">
             <option value="Wolf1Map1">Episode 1 - Floor 1</option>
             <option value="Wolf1Map2">Episode 1 - Floor 2</option>
             <option value="Wolf1Map3">Episode 1 - Floor 3</option>
@@ -68,7 +69,14 @@
             <option value="Wolf6Map8">Episode 6 - Floor 8</option>
             <option value="Wolf6Boss">Episode 6 - Floor 9 (Boss)</option>
             <option value="Wolf6Secret">Episode 6 - Floor 10 (Secret)</option>
-        </select>
+        </select><br />
+        Resolution: <button id="resolutionButton" onclick="toggleResolution()">320 x 200</button> <br />
+        Floor and ceiling textures: <button id="surfaceButton" onclick="toggleSurfaceTextures()">On</button> <br />
         <script src="script.js"></script>
+        <h3>Instructions :</h3>
+        <ul>
+            <li>Move with arrow keys</li>
+            <li>Open/close doors with Space</li>
+        </ul>
     </body>
 </html>
