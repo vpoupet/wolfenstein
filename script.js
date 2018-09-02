@@ -96,10 +96,19 @@ let isDrawing = false;
  * The elements in the array are objects with attributes
  * - x: x-coordinate of the door
  * - y: y-coordinate of the door
+ * - opening: boolean indicating if the door is opening (true) or closing (false)
  * - t: counter since door was open
  */
 let doorTimers;
-
+/**
+ * Array of wall timers for secret passages being active (moving)
+ * The elements in the array are objects with attributes
+ * - x: the x-coordinate of the wall
+ * - y: the y-coordinate of the wall
+ * - t: time counter since the wall started moving
+ * - dx, dy: indicate the direction in which the wall is moving (unit vector)
+ */
+let wallTimers;
 /**
  * Class representation of the bytes for a set of texture tiles
  * Textures should be 16x16 pixels images, stored one after the other in a PPM file
@@ -210,17 +219,17 @@ function Player(x, y, dx, dy) {
      * Walking speed
      * @type {number}
      */
-    this.speed = 0.1;
+    this.speed = 0.065;
     /**
      * Turning speed
      * @type {number}
      */
-    this.speed_a = 0.1;
+    this.speed_a = 0.05;
     /**
      * Player radius (for collision detection)
      * @type {number}
      */
-    this.radius = 0.4;
+    this.radius = 0.25;
     /**
      * Field of vision
      * @type {number}
@@ -348,6 +357,7 @@ function setup() {
     // setup things
     things = [];
     doorTimers = [];
+    wallTimers = [];
     for (let y = 0; y < 64; y++) {
         for (let x = 0; x < 64; x++) {
             // structural
@@ -416,9 +426,40 @@ function draw() {
         let timer = doorTimers[i];
         timer.t += 1;
         if (timer.t >= 64) {
-            plane2[timer.y][timer.x] = !plane2[timer.y][timer.x];
-            doorTimers.splice(i, 1);
-            i -= 1;
+            doorTimers.splice(i, 1);    // remove the timer
+            i -= 1; // adjust loop index to compensate for item removal
+            if (timer.opening) {
+                plane2[timer.y][timer.x] = false;
+            }
+        }
+    }
+
+    // update wall timers
+    for (let i = 0; i < wallTimers.length; i++) {
+        let timer = wallTimers[i];
+        timer.t += 1;
+        if (timer.t === 64) {
+            let x = timer.x;
+            let y = timer.y;
+            let dx = timer.dx;
+            let dy = timer.dy;
+            let wallValue = plane0[y][x];
+            plane0[y][x] = plane0[y + dy][x + dx];
+            plane0[y + dy][x + dx] = wallValue;
+            plane2[y][x] = false;
+            plane2[y + dy][x + dx] = true;
+            timer.steps -= 1;
+            if (timer.steps === 0) {
+                plane1[y][x] = 0;
+                doorTimers.splice(i, 1);
+                i -= 1;
+            } else {
+                plane1[y][x] = 0;
+                plane1[y + dy][x + dx] = 98;
+                timer.t = 0;
+                timer.x += dx;
+                timer.y += dy;
+            }
         }
     }
 
@@ -481,7 +522,50 @@ function drawWalls() {
             m0 = plane0[cy][cx];
             if (m0 <= 63) {
                 // hit a wall
-                if (rfx === 1) {
+                let wallShift = 0;
+                if (plane1[cy][cx] === 98) {
+                    // pushwall
+                    let timer = wallTimers.find(function(obj) { return obj.x === cx && obj.y === cy; });
+                    if (timer) {
+                        wallShift = timer.t / 64;
+                        if (timer.dx !== 0) {
+                            // wall moves horizontally
+                            if (rdx * rfy >= rdy * wallShift) {
+                                // ray hits wall
+                                let dt = wallShift / rdx;
+                                t += dt;
+                                rfy -= dt * rdy;
+                                rfx -= wallShift;
+                            } else {
+                                // ray moves to next cell
+                                let dt = rfy / rdy;
+                                t += dt;
+                                rfy = 1;
+                                cy += stepy;
+                                rfx -= dt * rdx;
+                                continue;
+                            }
+                        } else {
+                            // wall moves vertically
+                            if (rdy * rfx >= rdx * wallShift) {
+                                // ray hits wall
+                                let dt = wallShift / rdy;
+                                t += dt;
+                                rfx -= dt * rdx;
+                                rfy -= wallShift;
+                            } else {
+                                // ray moves to next cell
+                                let dt = rfx / rdx;
+                                t += dt;
+                                rfx = 1;
+                                cx += stepx;
+                                rfy -= dt * rdy;
+                                continue;
+                            }
+                        }
+                    }
+                }
+                if (rfx === 1 - wallShift) {
                     // NS wall
                     textureIndex = 2 * m0 - 1;
                     // fix texture orientation depending on ray direction
@@ -497,12 +581,17 @@ function drawWalls() {
                 // hit a door
 
                 // check if door has an associated timer
-                let door_shift = 0;
+                let doorShift = 0;
                 let timer = doorTimers.find(function(obj) { return obj.x === cx && obj.y === cy; });
-                if (timer) { door_shift = timer.t / 64; }
-
+                if (timer) {
+                    if (timer.opening) {
+                        doorShift = timer.t / 64;
+                    } else {
+                        doorShift = 1 - timer.t / 64;
+                    }
+                }
                 if (!plane2[cy][cx]) {
-                    door_shift = 1 - door_shift;
+                    doorShift = 1;
                 }
 
                 if (m0 % 2 === 0) {
@@ -514,7 +603,7 @@ function drawWalls() {
                         rfy -= dt * rdy;
                         rfx = .5;
                         tx = stepy > 0 ? 1 - rfy : rfy;
-                        tx -= door_shift;
+                        tx -= doorShift;
                         if (tx >= 0) {
                             // ray hits the door
                             switch (m0) {
@@ -561,7 +650,7 @@ function drawWalls() {
                         rfx -= dt * rdx;
                         rfy = .5;
                         tx = stepx > 0 ? 1 - rfx : rfx;
-                        tx -= door_shift;
+                        tx -= doorShift;
                         if (tx >= 0) {
                             // ray hits the door
                             switch (m0) {
@@ -626,26 +715,47 @@ function drawWalls() {
         zIndex[i] = t;
 
         // draw pixels in current column
-        if (surfaceTexturesOn) {
-            for (let j = 0; j <= pixelHeight / 2 - h; j++) {
+        for (let j = 0; j < pixelHeight; j++) {
+            if (j <= pixelHeight / 2 - h) {
                 // draw ceiling and floor
-                let d = wallHeight / (pixelHeight / 2 - j);
-                let fx = sx + (rx - sx) * (d - 1) / (t - 1);
-                let fy = sy + (ry - sy) * (d - 1) / (t - 1);
-                paintPixel(i, j, surfaceTextures, fx % 1, fy % 1, 1);
-                paintPixel(i, pixelHeight - j, surfaceTextures, fx % 1, fy % 1, 0);
-            }
-        } else {
-            for (let j = 0; j <= pixelHeight / 2 - h; j++) {
-                // draw ceiling and floor (plain color, as in original game)
-                drawPixel(i, j, 56, 56, 56);
-                drawPixel(i, pixelHeight - j, 113, 113, 113);
+                if (surfaceTexturesOn) {
+                    let d = wallHeight / (pixelHeight / 2 - j);
+                    let fx = sx + (rx - sx) * (d - 1) / (t - 1);
+                    let fy = sy + (ry - sy) * (d - 1) / (t - 1);
+                    paintPixel(i, j, surfaceTextures, fx % 1, fy % 1, 1);
+                    paintPixel(i, pixelHeight - j, surfaceTextures, fx % 1, fy % 1, 0);
+                } else {
+                    // draw ceiling and floor (plain color, as in original game)
+                    drawPixel(i, j, 56, 56, 56);
+                    drawPixel(i, pixelHeight - j, 113, 113, 113);
+                }
+            } else if (j > pixelHeight / 2 + h) {
+                break;
+            } else {
+                // draw wall
+                paintPixel(i, j, wallTextures, tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
             }
         }
-        for (let j = -~~( -pixelHeight / 2 + h); j <= pixelHeight / 2 + h; j++) {
-            // draw wall
-            paintPixel(i, j, wallTextures, tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
-        }
+        // if (surfaceTexturesOn) {
+        //     for (let j = 0; j <= pixelHeight / 2 - h; j++) {
+        //         // draw ceiling and floor
+        //         let d = wallHeight / (pixelHeight / 2 - j);
+        //         let fx = sx + (rx - sx) * (d - 1) / (t - 1);
+        //         let fy = sy + (ry - sy) * (d - 1) / (t - 1);
+        //         paintPixel(i, j, surfaceTextures, fx % 1, fy % 1, 1);
+        //         paintPixel(i, pixelHeight - j, surfaceTextures, fx % 1, fy % 1, 0);
+        //     }
+        // } else {
+        //     for (let j = 0; j <= pixelHeight / 2 - h; j++) {
+        //         // draw ceiling and floor (plain color, as in original game)
+        //         drawPixel(i, j, 56, 56, 56);
+        //         drawPixel(i, pixelHeight - j, 113, 113, 113);
+        //     }
+        // }
+        // for (let j = -~~( -pixelHeight / 2 + h); j <= pixelHeight / 2 + h; j++) {
+        //     // draw wall
+        //     paintPixel(i, j, wallTextures, tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
+        // }
     }
 }
 
@@ -654,6 +764,7 @@ function drawWalls() {
  * Update relative positions of all things in the player's reference frame
  */
 function updateThings() {
+
     for (let i = 0; i < things.length; i++) {
         things[i].update();
     }
@@ -786,19 +897,37 @@ function setupPage() {
 function activate() {
     let x = ~~player.x;
     let y = ~~player.y;
+    let dx = 0;
+    let dy = 0;
     if (Math.abs(player.dx) >= Math.abs(player.dy)) {
-        x += player.dx >= 0 ? 1 : -1;
+        dx = player.dx >= 0 ? 1 : -1;
+        x += dx;
     } else {
-        y += player.dy >= 0 ? 1 : -1;
+        dy = player.dy >= 0 ? 1 : -1;
+        y += dy;
     }
     let m0 = plane0[y][x];
     let m1 = plane1[y][x];
     if (90 <= m0 && m0 <= 101) {
+        // door
         let timer = doorTimers.find(function(obj) {
             return obj.x === x && obj.y === y;
         });
         if (!timer) {
-            doorTimers.push({x: x, y: y, t: 0});
+            let opening = plane2[y][x];
+            doorTimers.push({x: x, y: y, t: 0, opening: opening});
+            if (!opening) {
+                // if door is closing make it blocking immediately
+                plane2[y][x] = true;
+            }
+        }
+    } else if (m1 === 98) {
+        // pushwall
+        let timer = doorTimers.find(function(obj) {
+            return obj.x === x && obj.y === y;
+        });
+        if (!timer) {
+            wallTimers.push({x: x, y: y, t: 0, dx: dx, dy: dy, steps: 2});
         }
     }
 }
