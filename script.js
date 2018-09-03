@@ -46,7 +46,7 @@ let surfaceTexturesOn = true;
  * TileSet instance containing textures for the props
  * @type {TileSet}
  */
-let propTextures;
+let spriteTextures;
 /**
  * Array containing distance of wall for each pixel column on screen
  * @type {number[]}
@@ -110,6 +110,12 @@ let doorTimers;
  */
 let wallTimers;
 /**
+ * Currently tracked touch event (if any)
+ */
+let currentTouch;
+
+
+/**
  * Class representation of the bytes for a set of texture tiles
  * Textures should be 16x16 pixels images, stored one after the other in a PPM file
  * @param data {ArrayBuffer} buffer containing the bytes of a PPM file representing the textures
@@ -141,13 +147,13 @@ function TileSet(data) {
 
 
 /**
- * Class representation of the level props (decorations, powerups, etc.)
+ * Class representation of the level things (decorations, powerups, enemies, etc.)
  * @param x {number} starting x-coordinate on map
  * @param y {number} starting y-coordinate on map
- * @param index {number} index of texture to represent the prop
+ * @param spriteIndex {number} index of texture to represent the thing
  * @constructor
  */
-function Prop(x, y, index) {
+function Thing(x, y, spriteIndex, orientable=false) {
     /**
      * Current x-coordinate on map
      * @type {number}
@@ -162,8 +168,9 @@ function Prop(x, y, index) {
      * Index of texture
      * @type {number}
      */
-    this.index = index;
+    this.index = spriteIndex;
 
+    this.orientable = orientable;
     /**
      * Update relative coordinates from player's perspective)
      * This method should be called when either the prop or the player moves
@@ -183,6 +190,24 @@ function Prop(x, y, index) {
         this.ry = -this.rx * player.dy + this.ry * player.dx;
         this.rx = rx;
     }
+}
+
+
+/**
+ * Class representation of game enemies
+ * @param x {number} x-coordinate of the enemy
+ * @param y {number} y-coordinate of the enemy
+ * @param spriteIndex {number} index of the main sprite for the enemy (if the enemy is orientable, this is the index
+ * of the first sprite (front)
+ * @param deadIndex {number} index of the sprite that represents the enemy dead
+ * @param orientable {boolean} whether or not the enemy has different sprites depending on orientation
+ * @param direction {number} facing direction (0: north, 1: east, 2: south, 3: west)
+ * @constructor
+ */
+function Enemy(x, y, spriteIndex, deadIndex, orientable=false, direction=0) {
+    Thing.call(this, x, y, spriteIndex, orientable);
+    this.deadIndex = deadIndex;
+    this.direction = direction;
 }
 
 
@@ -247,7 +272,6 @@ function Player(x, y, dx, dy) {
         if (isValidPosition(this.x, this.y + length * this.dy)) {
             this.y += length * this.dy;
         }
-        updateThings();
     };
 
     /**
@@ -258,7 +282,6 @@ function Player(x, y, dx, dy) {
         let dx = this.dx * Math.cos(alpha) - this.dy * Math.sin(alpha);
         this.dy = this.dx * Math.sin(alpha) + this.dy * Math.cos(alpha);
         this.dx = dx;
-        updateThings();
     };
 }
 
@@ -288,7 +311,7 @@ function loadResources() {
      * This function is called after each resource is loaded. If all resources are loaded, the level is loaded.
      */
     function checkReady() {
-        if (wallTextures && surfaceTextures && propTextures) {
+        if (wallTextures && surfaceTextures && spriteTextures) {
             loadLevel();
         }
     }
@@ -308,9 +331,9 @@ function loadResources() {
         }
     );
     loadBytes(
-        "textures/props.ppm",
+        "textures/sprites.ppm",
         function () {
-            propTextures = new TileSet(this.response);
+            spriteTextures = new TileSet(this.response);
             checkReady();
         }
     );
@@ -382,17 +405,68 @@ function setup() {
                 player = new Player(x + .5, y + .5, -1, 0);
             } else if (m1 >= 23 && m1 <= 74) {
                 // props
-                things.push(new Prop(x + .5, y + .5, m1 - 21));
+                things.push(new Thing(x + .5, y + .5, m1 - 21));
                 if ([24, 25, 26, 28, 30, 31, 33, 34, 35, 36, 38, 39, 40, 41, 45, 58, 59, 60, 62, 63, 67, 68, 69,
                     71, 73].indexOf(m1) >= 0) {
                     // blocking prop
                     plane2[y][x] = true;
                 }
+            } else if (m1 >= 108) {
+                // enemy
+                if ((108 <= m1 && m1 < 116)) {  // Guard
+                    things.push(new Enemy(x + .5, y + .5, 50, 62, true, (m1 - 108) % 4));
+                } else if ((144 <= m1 && m1 < 152)) {
+                    things.push(new Enemy(x + .5, y + .5, 50, 62, true, (m1 - 144) % 4));
+
+                } else if ((116 <= m1 && m1 < 124)) {   // Officer
+                    things.push(new Enemy(x + .5, y + .5, 100, 112, true, (m1 - 116) % 4));
+                } else if ((152 <= m1 && m1 < 160)) {
+                    things.push(new Enemy(x + .5, y + .5, 100, 112, true, (m1 - 152) % 4));
+
+                } else if ((126 <= m1 && m1 < 134)) {   // SS
+                    things.push(new Enemy(x + .5, y + .5, 75, 86, true, (m1 - 126) % 4));
+                } else if ((162 <= m1 && m1 < 170)) {
+                    things.push(new Enemy(x + .5, y + .5, 75, 86, true, (m1 - 162) % 4));
+
+                } else if ((134 <= m1 && m1 < 142)) {   // Dog
+                    things.push(new Enemy(x + .5, y + .5, 63, 74, true, (m1 - 134) % 4));
+                } else if ((170 <= m1 && m1 < 178)) {
+                    things.push(new Enemy(x + .5, y + .5, 63, 74, true, (m1 - 170) % 4));
+
+                } else if ((216 <= m1 && m1 < 224)) {   // Mutant
+                    things.push(new Enemy(x + .5, y + .5, 87, 99, true, (m1 - 116) % 4));
+                } else if ((234 <= m1 && m1 < 242)) {
+                    things.push(new Enemy(x + .5, y + .5, 87, 99, true, (m1 - 144) % 4));
+
+                } else if (m1 === 160) {
+                    // fake Hitler
+                    things.push(new Enemy(x + .5, y + .5, 127, 133, false));
+                } else if (m1 === 178) {
+                    // Adolf Hitler
+                    things.push(new Enemy(x + .5, y + .5, 134, 142, false));
+                } else if (m1 === 179) {
+                    // General Fettgesicht
+                    things.push(new Enemy(x + .5, y + .5, 153, 157, false));
+                } else if (m1 === 196) {
+                    // Doctor Schabbs
+                    things.push(new Enemy(x + .5, y + .5, 122, 126, false));
+                } else if (m1 === 197) {
+                    // Gretel Grösse
+                    things.push(new Enemy(x + .5, y + .5, 148, 152, false));
+                } else if (m1 === 214) {
+                    // Hans Grösse
+                    things.push(new Enemy(x + .5, y + .5, 117, 121, false));
+                } else if (m1 === 215) {
+                    // Otto Giftmacher
+                    things.push(new Enemy(x + .5, y + .5, 143, 147, false));
+                } else if (224 <= m1 && m1 < 228) {
+                    // Ghost
+                    things.push(new Thing(x + .5, y + .5, 113 + m1 - 224));
+                }
             }
         }
     }
 
-    updateThings();
     // if the draw loop hasn't started yet, start it
     if (!isDrawing) {
         isDrawing = true;
@@ -411,15 +485,11 @@ function draw() {
     if (pressedKeys["ArrowUp"]) { player.move(player.speed) }
     if (pressedKeys["ArrowDown"]) { player.move(-player.speed) }
 
-    // draw visible game elements
-    let bgWidth = pixelWidth * zoom;
-    let bgHeight = pixelHeight * zoom / 2;
-    context.fillStyle = 'rgb(56, 56, 56)';
-    context.fillRect(0, 0, bgWidth, bgHeight);
-    context.fillStyle = 'rgb(113, 113, 113)';
-    context.fillRect(0, bgHeight, bgWidth, bgHeight);
-    drawWalls();
-    drawThings();
+    // update things
+    for (let i = 0; i < things.length; i++) {
+        things[i].update();
+    }
+    things.sort((a, b) => b.rx - a.rx);
 
     // update door timers
     for (let i = 0; i < doorTimers.length; i++) {
@@ -449,19 +519,29 @@ function draw() {
             plane2[y][x] = false;
             plane2[y + dy][x + dx] = true;
             timer.steps -= 1;
-            if (timer.steps === 0) {
-                plane1[y][x] = 0;
-                doorTimers.splice(i, 1);
-                i -= 1;
-            } else {
+            if (timer.steps > 0) {
                 plane1[y][x] = 0;
                 plane1[y + dy][x + dx] = 98;
                 timer.t = 0;
                 timer.x += dx;
                 timer.y += dy;
+            } else {
+                plane1[y][x] = 0;
+                doorTimers.splice(i, 1);
+                i -= 1;
             }
         }
     }
+
+    // draw visible game elements
+    let bgWidth = pixelWidth * zoom;
+    let bgHeight = pixelHeight * zoom / 2;
+    context.fillStyle = 'rgb(56, 56, 56)';
+    context.fillRect(0, 0, bgWidth, bgHeight);
+    context.fillStyle = 'rgb(113, 113, 113)';
+    context.fillRect(0, bgHeight, bgWidth, bgHeight);
+    drawWalls();
+    drawThings();
 
     context.putImageData(imageData, 0, 0);
     // call the draw function on next frame
@@ -722,8 +802,11 @@ function drawWalls() {
                     let d = wallHeight / (pixelHeight / 2 - j);
                     let fx = sx + (rx - sx) * (d - 1) / (t - 1);
                     let fy = sy + (ry - sy) * (d - 1) / (t - 1);
-                    paintPixel(i, j, surfaceTextures, fx % 1, fy % 1, 1);
-                    paintPixel(i, pixelHeight - j, surfaceTextures, fx % 1, fy % 1, 0);
+                    let bytes = surfaceTextures.bytes;
+                    let offset = surfaceTextures.getTexelOffset(fx % 1, fy % 1, 1);
+                    drawPixel(i, j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
+                    offset = surfaceTextures.getTexelOffset(fx % 1, fy % 1, 0);
+                    drawPixel(i, pixelHeight - j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
                 } else {
                     // draw ceiling and floor (plain color, as in original game)
                     drawPixel(i, j, 56, 56, 56);
@@ -733,42 +816,13 @@ function drawWalls() {
                 break;
             } else {
                 // draw wall
-                paintPixel(i, j, wallTextures, tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
+                let bytes = wallTextures.bytes;
+                let offset = wallTextures.getTexelOffset(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
+                drawPixel(i, j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
+                // paintPixel(i, j, wallTextures, tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
             }
         }
-        // if (surfaceTexturesOn) {
-        //     for (let j = 0; j <= pixelHeight / 2 - h; j++) {
-        //         // draw ceiling and floor
-        //         let d = wallHeight / (pixelHeight / 2 - j);
-        //         let fx = sx + (rx - sx) * (d - 1) / (t - 1);
-        //         let fy = sy + (ry - sy) * (d - 1) / (t - 1);
-        //         paintPixel(i, j, surfaceTextures, fx % 1, fy % 1, 1);
-        //         paintPixel(i, pixelHeight - j, surfaceTextures, fx % 1, fy % 1, 0);
-        //     }
-        // } else {
-        //     for (let j = 0; j <= pixelHeight / 2 - h; j++) {
-        //         // draw ceiling and floor (plain color, as in original game)
-        //         drawPixel(i, j, 56, 56, 56);
-        //         drawPixel(i, pixelHeight - j, 113, 113, 113);
-        //     }
-        // }
-        // for (let j = -~~( -pixelHeight / 2 + h); j <= pixelHeight / 2 + h; j++) {
-        //     // draw wall
-        //     paintPixel(i, j, wallTextures, tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
-        // }
     }
-}
-
-
-/**
- * Update relative positions of all things in the player's reference frame
- */
-function updateThings() {
-
-    for (let i = 0; i < things.length; i++) {
-        things[i].update();
-    }
-    things.sort((a, b) => b.rx - a.rx);
 }
 
 
@@ -786,10 +840,18 @@ function drawThings() {
         let tw = pixelWidth / ( 2 * player.fov * t.rx);
         let tx = ~~((t.ry / t.rx + player.fov) * pixelWidth / (2 * player.fov) - tw / 2);
         let ty = ~~((pixelHeight - th) / 2);
+        let angle = 0;
+        if (t.orientable) {
+            angle = (~~(-4 * Math.atan2(t.y - player.y, t.x - player.x) / Math.PI + 12.5) - 2 * t.direction) % 8;
+        }
+
         for (let x = Math.max(tx, 0); x < Math.min(tx + tw, pixelWidth); x++) {
             if (t.rx < zIndex[x]) {
                 for (let y = Math.max(ty, 0); y < Math.min(ty + th, pixelHeight); y++) {
-                    paintPixel(x, y, propTextures, (x - tx) / tw, (y - ty) / th, t.index);
+                    let bytes = spriteTextures.bytes;
+                    let offset = spriteTextures.getTexelOffset((x - tx) / tw, (y - ty) / th, t.index + angle);
+                    // paintPixel(x, y, spriteTextures, (x - tx) / tw, (y - ty) / th, t.index);
+                    drawPixel(x, y, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
                 }
             }
         }
@@ -831,29 +893,15 @@ function isValidPosition(x, y) {
  * Draws a pixel on the canvas by modifying the pixels array
  * @param x x-coordinate of the screen pixel to change
  * @param y y-coordinate of the screen pixel to change
- * @param tileSet tile set from which the pixel color should be taken
- * @param tx x-coordinate of tile pixel (float in [0, 1])
- * @param ty y-coordinate of tile pixel (float in [0, 1])
- * @param ti index of tile
+ * @param r red component
+ * @param g red component
+ * @param b red component
+ * Note: if r is 255, the pixel is not drawn (used for transparency effects)
  */
-function paintPixel(x, y, tileSet, tx, ty, ti) {
-    let bytes = tileSet.bytes;
-    let offset = tileSet.getTexelOffset(tx, ty, ti);
-    if (bytes[offset] !== 0xFF) {
-        for (let i = 0; i < zoom; i++) {
-            for (let j = 0; j < zoom; j++) {
-                let pixelOffset = 4 * (pixelWidth * zoom * (zoom * y + j) + zoom * x + i);
-                pixels[pixelOffset] = bytes[offset];
-                pixels[pixelOffset + 1] = bytes[offset + 1];
-                pixels[pixelOffset + 2] = bytes[offset + 2];
-                pixels[pixelOffset + 3] = 255;
-            }
-        }
-    }
-}
-
-
 function drawPixel(x, y, r, g, b) {
+    if (r === 255) {
+        return;
+    }
     for (let i = 0; i < zoom; i++) {
         for (let j = 0; j < zoom; j++) {
             let pixelOffset = 4 * (pixelWidth * zoom * (zoom * y + j) + zoom * x + i);
@@ -880,7 +928,12 @@ function setupPage() {
     imageData = context.getImageData(0, 0, pixelWidth * zoom, pixelHeight * zoom);
     pixels = imageData.data;
 
-    // events
+    canvas.addEventListener("touchstart", handleTouchStart, false);
+    canvas.addEventListener("touchmove", handleTouchMove, false);
+    canvas.addEventListener("touchend", handleTouchEnd, false);
+    canvas.addEventListener("touchcancel", handleTouchEnd, false);
+    canvas.addEventListener("click", activate, false);
+
     document.onkeydown = function(e) { pressedKeys[e.key] = true; };
     document.onkeyup = function(e) { pressedKeys[e.key] = false; };
     document.onkeypress = function(e) {
@@ -923,10 +976,11 @@ function activate() {
         }
     } else if (m1 === 98) {
         // pushwall
-        let timer = doorTimers.find(function(obj) {
+        let timer = wallTimers.find(function(obj) {
             return obj.x === x && obj.y === y;
         });
-        if (!timer) {
+        if (!timer && plane0[y + dy][x + dx] >= 106) {
+            // there is no active timer for this wall, and it can move backwards
             wallTimers.push({x: x, y: y, t: 0, dx: dx, dy: dy, steps: 2});
         }
     }
@@ -969,6 +1023,62 @@ function toggleSurfaceTextures() {
         button.innerHTML = "Off";
     }
     button.disabled = false;
+}
+
+
+/**
+ * Start tracking a touch event
+ * @param e touch event
+ */
+function handleTouchStart(e) {
+    if (currentTouch === undefined) {
+        currentTouch = e.changedTouches[0];
+    }
+}
+
+
+/**
+ * Track a moving touch event
+ * @param e touch event
+ */
+function handleTouchMove(e) {
+    e.preventDefault();
+    if (currentTouch) {
+        let touch;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === currentTouch.identifier) {
+                touch = e.changedTouches[i];
+                break;
+            }
+        }
+        if (touch) {
+            player.move(0.01 * (touch.screenY - currentTouch.screenY));
+            player.turn(-0.005 * (touch.screenX - currentTouch.screenX));
+            currentTouch = touch;
+        }
+    }
+}
+
+
+/**
+ * Stop tracking a touch event
+ * @param e touch event
+ */
+function handleTouchEnd(e) {
+    e.preventDefault();
+    if (currentTouch) {
+        let touch;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === currentTouch.identifier) {
+                touch = e.changedTouches[i];
+                break;
+            }
+        }
+        if (touch) {
+            activate();
+            currentTouch = undefined;
+        }
+    }
 }
 
 

@@ -215,7 +215,7 @@ def make_wall_tileset(input_file="VSWAP.WL6", output_file="walls.ppm"):
     :param input_file: name of data file containing the textures
     :param output_file: name of the PPM file that will be created
     """
-    tileset = b''
+    tileset = bytearray()
     with open(input_file, "rb") as fp:
         nb_chunks, first_sprite, first_sound = struct.unpack('<3H', fp.read(6))
         chunk_offset = struct.unpack('<{}I'.format(nb_chunks), fp.read(4 * nb_chunks))
@@ -233,24 +233,22 @@ def make_wall_tileset(input_file="VSWAP.WL6", output_file="walls.ppm"):
         fp.write(tileset)
 
 
-def make_sprite_tileset(input_file="VSWAP.WL6", output_file="sprites.ppm", start_sprite=0, nb_sprites=None):
+def make_sprite_tileset(output_file="sprites.ppm", indexes=None):
     """
     Create a PPM image containing sprite textures from the input file
-    :param input_file: name of data file containing the textures
     :param output_file: name of the PPM file that will be created
-    :param start_index: index of first sprite to extract
-    :param end_index: index of last sprite to extract
+    :param indexes: list of indexes of sprites to add to the tileset
     """
-    tileset = b''
-    with open(input_file, "rb") as fp:
+    tileset = bytearray()
+    with open("VSWAP.WL6", "rb") as fp:
         nb_chunks, first_sprite, first_sound = struct.unpack('<3H', fp.read(6))
-        first_sprite += start_sprite
-        if nb_sprites is None:
-            nb_sprites = first_sound - first_sprite
+        if indexes is None:
+            indexes = list(range(first_sound - first_sprite))
         chunk_offset = struct.unpack('<{}I'.format(nb_chunks), fp.read(4 * nb_chunks))
         chunk_length = struct.unpack('<{}H'.format(nb_chunks), fp.read(2 * nb_chunks))
 
-        for sprite_index in range(first_sprite, first_sprite + nb_sprites):
+        for sprite_index in indexes:
+            sprite_index += first_sprite
             # read the chunk to buffer
             fp.seek(chunk_offset[sprite_index])
             chunk_data = fp.read(chunk_length[sprite_index])
@@ -287,6 +285,28 @@ def make_sprite_tileset(input_file="VSWAP.WL6", output_file="sprites.ppm", start
 
     with open(output_file, "wb") as fp:
         fp.write('P6\n'.encode('ascii'))
-        fp.write('64 {}\n'.format(64 * nb_sprites).encode('ascii'))
+        fp.write('64 {}\n'.format(64 * len(indexes)).encode('ascii'))
         fp.write('255\n'.encode('ascii'))
         fp.write(tileset)
+
+
+# idx = []
+# for x in (
+#     range(50),  # props
+#     range(50, 58), [90, 91, 92, 93, 95],  # soldier
+#     range(99, 107), range(131, 135),  # dog
+#     range(138, 146), [179, 180, 181, 183],  # SS soldier
+#     range(187, 195), [228, 229, 230, 232, 233],  # zombie soldier
+#     range(238, 246), [279, 280, 281, 283, 284],  # officer
+#     [288, 290, 292, 294],  # ghosts
+#     [300, 304, 305, 306, 303],  # Hans Grösse
+#     range(312, 317),  # Doctor Schabbs
+#     [321], range(328, 334),  # Fake Hitler
+#     [349], range(353, 360), [352],  # Adolf Hitler
+#     [364], range(366, 370),  # Otto Giftmacher
+#     [389], [393, 394, 395, 392],  # Gretel Grösse
+#     [400], range(404, 408),  # General Fettgesicht
+# ):
+#     idx += x
+#
+# make_sprite_tileset('test.ppm', idx)
