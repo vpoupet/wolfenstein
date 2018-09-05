@@ -110,6 +110,10 @@ let doorTimers;
  */
 let wallTimers;
 /**
+ * Array of enemies currently in an animation (animation ends when index reaches animationIndex)
+ */
+let animatedEnemies;
+/**
  * Currently tracked touch event (if any)
  */
 let currentTouch;
@@ -165,11 +169,14 @@ function Thing(x, y, spriteIndex, orientable=false) {
      */
     this.y = y;
     /**
-     * Index of texture
+     * Index of sprite texture
      * @type {number}
      */
-    this.index = spriteIndex;
-
+    this.spriteIndex = spriteIndex;
+    /**
+     * Whether the thing has different sprites depending on orientation
+     * @type {boolean}
+     */
     this.orientable = orientable;
     /**
      * Update relative coordinates from player's perspective)
@@ -199,15 +206,55 @@ function Thing(x, y, spriteIndex, orientable=false) {
  * @param y {number} y-coordinate of the enemy
  * @param spriteIndex {number} index of the main sprite for the enemy (if the enemy is orientable, this is the index
  * of the first sprite (front)
- * @param deadIndex {number} index of the sprite that represents the enemy dead
+ * @param dieEndIndex {number} index of the sprite that represents the enemy dead
  * @param orientable {boolean} whether or not the enemy has different sprites depending on orientation
  * @param direction {number} facing direction (0: north, 1: east, 2: south, 3: west)
  * @constructor
  */
-function Enemy(x, y, spriteIndex, deadIndex, orientable=false, direction=0) {
+function Enemy(x, y, spriteIndex, dieEndIndex, orientable=false, direction=0) {
     Thing.call(this, x, y, spriteIndex, orientable);
-    this.deadIndex = deadIndex;
+    /**
+     * Index of first sprite in dying animation
+     * @type {number}
+     */
+    this.dieStartIndex = orientable ? spriteIndex + 8 : spriteIndex + 1;
+    /**
+     * Index of last sprite in dying animation
+     * @type {number}
+     */
+    this.dieEndIndex = dieEndIndex;
+    /**
+     * Facing direction (0: North, 1: East, 2: South, 3: West)
+     * @type {number}
+     */
     this.direction = direction;
+    /**
+     * Frame counter for animations (couter is incremented each frame)
+     * @type {number}
+     */
+    this.animationCounter = 0;
+    /**
+     * Index of last sprite in current animation
+     * @type {number}
+     */
+    this.animationEndIndex = 0;
+    /**
+     * Whether the enemy is currently alive
+     * @type {boolean}
+     */
+    this.alive = true;
+
+    /**
+     * Kill the enemy and start its dying animation
+     */
+    this.die = function() {
+        this.alive = false;
+        this.orientable = false;
+        this.spriteIndex = this.dieStartIndex;
+        this.animationCounter = 0;
+        this.animationEndIndex = this.dieEndIndex;
+        animatedEnemies.push(this);
+    }
 }
 
 
@@ -381,6 +428,7 @@ function setup() {
     things = [];
     doorTimers = [];
     wallTimers = [];
+    animatedEnemies = [];
     for (let y = 0; y < 64; y++) {
         for (let x = 0; x < 64; x++) {
             // structural
@@ -411,6 +459,9 @@ function setup() {
                     // blocking prop
                     plane2[y][x] = true;
                 }
+            } else if (m1 === 124) {
+                // dead guard
+                things.push(new Thing(x + .5, y + .5, 62));
             } else if (m1 >= 108) {
                 // enemy
                 if ((108 <= m1 && m1 < 116)) {  // Guard
@@ -530,6 +581,20 @@ function draw() {
                 doorTimers.splice(i, 1);
                 i -= 1;
             }
+        }
+    }
+
+    // update animated enemies
+    for (let i = 0; i < animatedEnemies.length; i++) {
+        let e = animatedEnemies[i];
+        e.animationCounter += 1;
+        if (e.animationCounter >= 8) {
+            e.spriteIndex += 1;
+            e.animationCounter = 0;
+        }
+        if (e.spriteIndex >= e.animationEndIndex) {
+            animatedEnemies.splice(i, 1);
+            i -= 1;
         }
     }
 
@@ -849,8 +914,7 @@ function drawThings() {
             if (t.rx < zIndex[x]) {
                 for (let y = Math.max(ty, 0); y < Math.min(ty + th, pixelHeight); y++) {
                     let bytes = spriteTextures.bytes;
-                    let offset = spriteTextures.getTexelOffset((x - tx) / tw, (y - ty) / th, t.index + angle);
-                    // paintPixel(x, y, spriteTextures, (x - tx) / tw, (y - ty) / th, t.index);
+                    let offset = spriteTextures.getTexelOffset((x - tx) / tw, (y - ty) / th, t.spriteIndex + angle);
                     drawPixel(x, y, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
                 }
             }
@@ -934,7 +998,10 @@ function setupPage() {
     canvas.addEventListener("touchcancel", handleTouchEnd, false);
     canvas.addEventListener("click", activate, false);
 
-    document.onkeydown = function(e) { pressedKeys[e.key] = true; };
+    document.onkeydown = function(e) {
+        if (e.key === "Control") { shoot(); }
+        pressedKeys[e.key] = true;
+    };
     document.onkeyup = function(e) { pressedKeys[e.key] = false; };
     document.onkeypress = function(e) {
         if (e.key === " ") {
@@ -1080,6 +1147,21 @@ function handleTouchEnd(e) {
         }
     }
 }
+
+
+function shoot() {
+    let d = zIndex[pixelWidth / 2];
+    for (let i = things.length - 1; i >= 0; i--) {
+        let t = things[i];
+        if (t.rx < 0) { continue; }
+        if (t.rx >= d) { break; }
+        if (t instanceof Enemy && Math.abs(t.ry) <= .5 && t.alive) {
+            t.die();
+            return;
+        }
+    }
+}
+
 
 
 setupPage();
