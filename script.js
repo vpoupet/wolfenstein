@@ -29,24 +29,21 @@ let player;
  */
 let things;
 /**
- * TileSet instance containing textures for the walls
- * @type {TileSet}
+ * Offset in the VSWAP.WL6 file where the first wall texture starts
+ * @type {number}
  */
-let wallTextures;
-/**
- * TileSet instance containing textures for the floor and ceiling
- * @type {TileSet}
- */
-let surfaceTextures;
+let wallTexturesOffset;
 /**
  * Whether surface textures (ceiling and floor) should be displayed)
  */
-let surfaceTexturesOn = true;
+let surfaceTexturesOn = false;
 /**
- * TileSet instance containing textures for the props
- * @type {TileSet}
+ * Array of tiles for the sprites. The array is initially empty and filled lazily as sprites are needed.
+ * The elements of the array are 4096 long arrays (64 x 64 pixels) containing palette indexes or undefined (transparent
+ * pixels)
+ * @type {Array}
  */
-let spriteTextures;
+ let spriteTextures;
 /**
  * Array containing distance of wall for each pixel column on screen
  * @type {number[]}
@@ -58,8 +55,8 @@ let zIndex = new Array(pixelWidth);
  */
 let pressedKeys = {};
 /**
- * 2D arrays containing map data for planes 0 and 1
- * @type {Uint8Array[]}
+ * DataViews of the level data from GAMEMAPS.WL6
+ * @type {DataView}
  */
 let plane0, plane1;
 /**
@@ -82,8 +79,8 @@ let context;
  */
 let imageData;
 /**
- * Array of rendered pixels
- * @type {Uint8ClampedArray}
+ * DataView of rendered pixels
+ * @type {DataView}
  */
 let pixels;
 /**
@@ -117,144 +114,68 @@ let animatedEnemies;
  * Currently tracked touch event (if any)
  */
 let currentTouch;
+/**
+ * DataView containing the data from VSWAP.WL6
+ * @type {DataView}
+ */
+let VSWAP;
+/**
+ * ArrayBuffers containing the data from MAPHEAD.WL6 and GAMEMAPS.WL6
+ * @type {ArrayBuffer}
+ */
+let MAPHEAD, GAMEMAPS;
+/**
+ * Game color palette (RGBA, 32bit little-endian)
+ * @type {Uint32Array}
+ */
+let palette = new Uint32Array([
+    4278190080, 4289200128, 4278233088, 4289243136, 4278190248, 4289200296, 4278211752, 4289243304,
+    4283716692, 4294726740, 4283759700, 4294769748, 4283716860, 4294726908, 4283759868, 4294769916,
+    4293717228, 4292664540, 4291875024, 4290822336, 4290032820, 4289243304, 4288190616, 4287401100,
+    4286348412, 4285558896, 4284769380, 4283716692, 4282927176, 4281874488, 4281084972, 4280295456,
+    4278190332, 4278190316, 4278190304, 4278190292, 4278190280, 4278190268, 4278190256, 4278190244,
+    4278190232, 4278190216, 4278190204, 4278190192, 4278190180, 4278190168, 4278190156, 4278190144,
+    4292401404, 4290296060, 4288453884, 4286348540, 4284243196, 4282401020, 4280295676, 4278190332,
+    4284262652, 4282423548, 4280322300, 4278221052, 4278217956, 4278214860, 4278211764, 4278209692,
+    4292410620, 4290313468, 4288478460, 4286381308, 4284283132, 4282447100, 4280349948, 4278252796,
+    4278245604, 4278240460, 4278234292, 4278230172, 4278224004, 4278217840, 4278211672, 4278206528,
+    4284284112, 4282449092, 4280351924, 4278254752, 4278248592, 4278242432, 4278236276, 4278230112,
+    4292410584, 4290313404, 4288478364, 4286381184, 4284284000, 4282448960, 4280351776, 4278254592,
+    4278254592, 4278250496, 4278247424, 4278244352, 4278241284, 4278238212, 4278235140, 4278232068,
+    4278228996, 4278224900, 4278221828, 4278218756, 4278215684, 4278212612, 4278209540, 4278206468,
+    4294769880, 4294769848, 4294769820, 4294507644, 4294769756, 4294769728, 4294769696, 4294769664,
+    4293190656, 4291611648, 4290032640, 4288453632, 4286874624, 4285558784, 4283979776, 4282400768,
+    4294753372, 4294750272, 4294748192, 4294745088, 4293168128, 4291591168, 4290014208, 4288437248,
+    4294760664, 4294753464, 4294745244, 4294738044, 4294729820, 4294721600, 4294714400, 4294706176,
+    4294705152, 4293656576, 4292870144, 4292083712, 4291297280, 4290510848, 4289724416, 4288937984,
+    4288151552, 4287102976, 4286316544, 4285530112, 4284743680, 4283957248, 4283170816, 4282384384,
+    4280821800, 4281655548, 4280603900, 4279815420, 4278763772, 4278236412, 4294713524, 4294705320,
+    4293132440, 4291559552, 4289986676, 4288413792, 4286840912, 4285530180, 4283957300, 4282384424,
+    4294760700, 4294752508, 4294745340, 4294737148, 4294728956, 4294721788, 4294713596, 4294705404,
+    4293132512, 4291559624, 4289986740, 4288413852, 4286840964, 4285530220, 4283957336, 4282384448,
+    4292667644, 4291879164, 4291090684, 4290565372, 4289776892, 4288988412, 4288462076, 4287674620,
+    4286623996, 4285572348, 4284521724, 4284257520, 4283993320, 4283730140, 4283465936, 4283202760,
+    4282939580, 4282675380, 4282411176, 4282148000, 4281884828, 4281621648, 4281358472, 4281094272,
+    4280831092, 4280567916, 4280303708, 4280040532, 4279777352, 4279775296, 4279512120, 4278984744,
+    4284743776, 4284769280, 4284506112, 4280025088, 4281073664, 4279247920, 4282908744, 4283433040,
+    4281597952, 4280032284, 4283190348, 4284243036, 4282400832, 4281348144, 4281611316, 4294243544,
+    4293454008, 4292664476, 4291348596, 4290822216, 4290032672, 4289769504, 4288979968, 4288190464,
+    4287400960, 4286874624, 4286348288, 4286085120, 4285821952, 4285558784, 4285295616, 4287103128]);
 
+
+// *** Classes ***
 
 /**
- * Class representation of the bytes for a set of texture tiles
- * Textures should be 16x16 pixels images, stored one after the other in a PPM file
- * @param data {ArrayBuffer} buffer containing the bytes of a PPM file representing the textures
+ * Class representation of a sprite animation
+ * @param sprites {int[]} list of sprite indexes to animate
+ * @param loop {boolean} whether the animation should loop
  * @constructor
  */
-function TileSet(data) {
-    /**
-     * Array of pixel bytes from the PPM file
-     * @type {Uint8Array}
-     */
-    this.bytes = new Uint8Array(data);
-    // remove PPM header (skip first 3 lines)
-    let headerOffset = this.bytes.indexOf(10);
-    headerOffset = this.bytes.indexOf(10, headerOffset + 1);
-    headerOffset = this.bytes.indexOf(10, headerOffset + 1);
-    this.bytes = this.bytes.slice(headerOffset + 1);
-
-    /**
-     * Returns the index in the bytes array at which a specific pixel is represented
-     * @param x {number} x-coordinate of the required pixel (float in [0, 1])
-     * @param y {number} y-coordinate of the required pixel (float in [0, 1])
-     * @param index {number} index of the texture
-     * @returns {number} index in the array where the pixel bytes are located
-     */
-    this.getTexelOffset = function(x, y, index) {
-        return 12288 * index + 3 * ~~(64 * y) + 192 * ~~(64 * x);
-    };
-}
-
-
-/**
- * Class representation of the level things (decorations, powerups, enemies, etc.)
- * @param x {number} starting x-coordinate on map
- * @param y {number} starting y-coordinate on map
- * @param spriteIndex {number} index of texture to represent the thing
- * @constructor
- */
-function Thing(x, y, spriteIndex, orientable=false) {
-    /**
-     * Current x-coordinate on map
-     * @type {number}
-     */
-    this.x = x;
-    /**
-     * Current y-coordinate on map
-     * @type {number}
-     */
-    this.y = y;
-    /**
-     * Index of sprite texture
-     * @type {number}
-     */
-    this.spriteIndex = spriteIndex;
-    /**
-     * Whether the thing has different sprites depending on orientation
-     * @type {boolean}
-     */
-    this.orientable = orientable;
-    /**
-     * Update relative coordinates from player's perspective)
-     * This method should be called when either the prop or the player moves
-     */
-    this.update = function() {
-        /**
-         * Relative x-coordinate in the player's reference frame
-         * @type {number}
-         */
-        this.rx = this.x - player.x;
-        /**
-         * Relative y-coordinate in the player's reference frame
-         * @type {number}
-         */
-        this.ry = this.y - player.y;
-        let rx = this.rx * player.dx + this.ry * player.dy;
-        this.ry = -this.rx * player.dy + this.ry * player.dx;
-        this.rx = rx;
-    }
-}
-
-
-/**
- * Class representation of game enemies
- * @param x {number} x-coordinate of the enemy
- * @param y {number} y-coordinate of the enemy
- * @param spriteIndex {number} index of the main sprite for the enemy (if the enemy is orientable, this is the index
- * of the first sprite (front)
- * @param dieEndIndex {number} index of the sprite that represents the enemy dead
- * @param orientable {boolean} whether or not the enemy has different sprites depending on orientation
- * @param direction {number} facing direction (0: north, 1: east, 2: south, 3: west)
- * @constructor
- */
-function Enemy(x, y, spriteIndex, dieEndIndex, orientable=false, direction=0) {
-    Thing.call(this, x, y, spriteIndex, orientable);
-    /**
-     * Index of first sprite in dying animation
-     * @type {number}
-     */
-    this.dieStartIndex = orientable ? spriteIndex + 8 : spriteIndex + 1;
-    /**
-     * Index of last sprite in dying animation
-     * @type {number}
-     */
-    this.dieEndIndex = dieEndIndex;
-    /**
-     * Facing direction (0: North, 1: East, 2: South, 3: West)
-     * @type {number}
-     */
-    this.direction = direction;
-    /**
-     * Frame counter for animations (couter is incremented each frame)
-     * @type {number}
-     */
-    this.animationCounter = 0;
-    /**
-     * Index of last sprite in current animation
-     * @type {number}
-     */
-    this.animationEndIndex = 0;
-    /**
-     * Whether the enemy is currently alive
-     * @type {boolean}
-     */
-    this.alive = true;
-
-    /**
-     * Kill the enemy and start its dying animation
-     */
-    this.die = function() {
-        this.alive = false;
-        this.orientable = false;
-        this.spriteIndex = this.dieStartIndex;
-        this.animationCounter = 0;
-        this.animationEndIndex = this.dieEndIndex;
-        animatedEnemies.push(this);
-    }
+function Animation(sprites, loop=false) {
+    this.sprites = sprites;
+    this.spriteIndex = 0;
+    this.timer = 0;
+    this.loop = loop
 }
 
 
@@ -271,12 +192,12 @@ function Player(x, y, dx, dy) {
      * Position of the player on the map (x-coordinate)
      * @type {number}
      */
-    this.x = x;
+    this.x = x + .5;
     /**
      * Position of the player on the map (y-coordinate)
      * @type {number}
      */
-    this.y = y;
+    this.y = y + .5;
     /**
      * Player facing direction (x-value)
      * @type {number}
@@ -307,17 +228,52 @@ function Player(x, y, dx, dy) {
      * @type {number}
      */
     this.fov = 1;
+    /**
+     * Sprite index to display as player's weapon
+     * @type {number}
+     */
+    this.weaponSprite = 421;
+    /**
+     * Check whether the player can go to the given location
+     * @param x {number} x-coordinate of the position
+     * @param y {number} y-coordinate of the position
+     * @returns {boolean} whether the location is valid for the player
+     */
+    this.canMoveTo = function(x, y) {
+        let r = this.radius;
+        let fx = x % 1;
+        x = ~~x;
+        let fy = y % 1;
+        y = ~~y;
+
+        if (plane2[x][y]) return false;
+        if (fx < r) {
+            if (plane2[x- 1][y]) return false;
+            if (fy < r && plane2[x - 1][y - 1]) return false;
+            if (fy > 1 - r && plane2[x - 1][y + 1]) return false;
+        }
+        if (fx > 1 - r) {
+            if (plane2[x + 1][y]) return false;
+            if (fy < r && plane2[x + 1][y - 1]) return false;
+            if (fy > 1 - r && plane2[x + 1][y + 1]) return false;
+        }
+        if (fy < r && plane2[x][y - 1]) return false;
+        if (fy > 1 - r && plane2[x][y + 1]) return false;
+        return true;
+    };
 
     /**
      * Move forward
      * @param length {number} distance to move (use negative value to move backwards)
      */
     this.move = function(length) {
-        if (isValidPosition(this.x + length * this.dx, this.y)) {
-            this.x += length * this.dx;
+        let x = this.x + this.dx * length;
+        let y = this.y + this.dy * length;
+        if (this.canMoveTo(x, this.y)) {
+            this.x = x;
         }
-        if (isValidPosition(this.x, this.y + length * this.dy)) {
-            this.y += length * this.dy;
+        if (this.canMoveTo(this.x, y)) {
+            this.y = y;
         }
     };
 
@@ -330,6 +286,434 @@ function Player(x, y, dx, dy) {
         this.dy = this.dx * Math.sin(alpha) + this.dy * Math.cos(alpha);
         this.dx = dx;
     };
+
+    /**
+     * Activate a cell in front of the player (open/close door, push secret wall)
+     */
+    this.activate = function() {
+        let x = ~~player.x;
+        let y = ~~player.y;
+        let dx = 0;
+        let dy = 0;
+        if (Math.abs(player.dx) >= Math.abs(player.dy)) {
+            dx = player.dx >= 0 ? 1 : -1;
+            x += dx;
+        } else {
+            dy = player.dy >= 0 ? 1 : -1;
+            y += dy;
+        }
+        let m0 = map0(x, y);
+        let m1 = map1(x, y);
+        if (90 <= m0 && m0 <= 101) {
+            // door
+            let timer = doorTimers.find(function(obj) {
+                return obj.x === x && obj.y === y;
+            });
+            if (!timer) {
+                let opening = plane2[x][y];
+                if (!opening) {
+                    if ((dx > 0 && x - player.x <= player.radius) ||
+                        (dx < 0 && player.x - x - 1 <= player.radius) ||
+                        (dy > 0 && y - player.y <= player.radius) ||
+                        (dy < 0 && player.y - y - 1<= player.radius)) {
+                        // player is too close to the door, the door cannot close
+                        return;
+                    } else {
+                        // the door closes (it becomes blocking immediately)
+                        plane2[x][y] = true;
+                    }
+                }
+                doorTimers.push({x: x, y: y, t: 0, opening: opening});
+            }
+        } else if (m1 === 98) {
+            // pushwall
+            let timer = wallTimers.find(function(obj) {
+                return obj.x === x && obj.y === y;
+            });
+            if (!timer && map0(x + dx, y + dy) >= 106) {
+                // there is no active timer for this wall, and it can move backwards
+                wallTimers.push({x: x, y: y, t: 0, dx: dx, dy: dy, steps: 2});
+            }
+        }
+    };
+
+    /**
+     * Shoot straight in front of the player (kills the first enemy in the line)
+     */
+    this.shoot = function() {
+        if (!this.weaponAnimation) {
+            this.weaponAnimation = new Animation([422, 423, 424, 425]);
+            let d = zIndex[pixelWidth / 2];
+            for (let i = things.length - 1; i >= 0; i--) {
+                let t = things[i];
+                if (t.rx < 0) {
+                    continue;
+                }
+                if (t.rx >= d) {
+                    break;
+                }
+                if (Math.abs(t.ry) <= .3 && t.alive) {
+                    t.die();
+                    return;
+                }
+            }
+        }
+    };
+
+    this.update = function() {
+        if (this.weaponAnimation) {
+            let a = this.weaponAnimation;
+            a.timer += 1;
+            if (a.timer >= 6) {
+                a.timer = 0;
+                if (a.spriteIndex >= a.sprites.length - 1) {
+                    this.weaponAnimation = undefined;
+                    this.weaponSprite = 421;
+                } else {
+                    a.spriteIndex += 1;
+                    this.weaponSprite = a.sprites[a.spriteIndex];
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * Class representation of the level things (decorations, powerups, enemies, etc.)
+ * @param x {number} starting x-coordinate on map
+ * @param y {number} starting y-coordinate on map
+ * @param spriteIndex {number} index of texture to represent the thing
+ * @param orientable {boolean} whether the thing has different sprites depending on orientation
+ * @constructor
+ */
+function Thing(x, y, spriteIndex, orientable=false) {
+    /**
+     * Current x-coordinate on map
+     * @type {number}
+     */
+    this.x = x + .5;
+    /**
+     * Current y-coordinate on map
+     * @type {number}
+     */
+    this.y = y + .5;
+    /**
+     * Index of sprite texture
+     * @type {number}
+     */
+    this.spriteIndex = spriteIndex;
+    /**
+     * Whether the thing has different sprites depending on orientation
+     * @type {boolean}
+     */
+    this.orientable = orientable;
+    this.startAnimation = function(animation) {
+        this.animation = animation;
+        this.spriteIndex = animation.sprites[0];
+    };
+    /**
+     * Update necessary attributes each frame:
+     * - relative coordinates from player's perspective
+     * - possible animation values
+     */
+    this.update = function() {
+        /**
+         * Relative x-coordinate in the player's reference frame
+         * @type {number}
+         */
+        this.rx = this.x - player.x;
+        /**
+         * Relative y-coordinate in the player's reference frame
+         * @type {number}
+         */
+        this.ry = this.y - player.y;
+        let rx = this.rx * player.dx + this.ry * player.dy;
+        this.ry = -this.rx * player.dy + this.ry * player.dx;
+        this.rx = rx;
+
+        if (this.animation) {
+            let a = this.animation;
+            a.timer += 1;
+            if (a.timer >= 8) {
+                a.timer = 0;
+                if (a.spriteIndex >= a.sprites.length - 1) {
+                    if (a.loop) {
+                        // animation loops
+                        a.spriteIndex = 0;
+                    } else {
+                        // animation ended
+                        this.animation = undefined;
+                    }
+                } else {
+                    a.spriteIndex += 1;
+                }
+                this.spriteIndex = a.sprites[a.spriteIndex];
+            }
+        }
+    }
+}
+
+
+/**
+ * Class representation of game enemies
+ * @param x {number} x-coordinate of the enemy
+ * @param y {number} y-coordinate of the enemy
+ * @param spriteIndex {number} index of the main sprite for the enemy (if the enemy is orientable, this is the index
+ * of the first sprite (front)
+ * @param deathSprites {number[]} sprite indexes of the enemy's dying animation
+ * @param orientable {boolean} whether or not the enemy has different sprites depending on orientation
+ * @param direction {number} facing direction (0: north, 1: east, 2: south, 3: west)
+ * @constructor
+ */
+function Enemy(x, y, spriteIndex, deathSprites, orientable=false, direction=0) {
+    Thing.call(this, x, y, spriteIndex, orientable);
+    /**
+     * List of sprite indexes of the enemy's dying animation
+     * @type {number[]}
+     */
+    this.deathSprites = deathSprites;
+    /**
+     * Facing direction (0: North, 1: East, 2: South, 3: West)
+     * @type {number}
+     */
+    this.direction = direction;
+    /**
+     * Whether the enemy is currently alive
+     * @type {boolean}
+     */
+    this.alive = true;
+
+    /**
+     * Kill the enemy and start its dying animation
+     */
+    this.die = function() {
+        this.alive = false;
+        this.orientable = false;
+        this.startAnimation(new Animation(this.deathSprites));
+    };
+}
+
+
+/**
+ * Standard (brown) guard
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @param direction {number} facing direction
+ * @constructor
+ */
+function GuardEnemy(x, y, direction) {
+    Enemy.call(this, x, y, 50, [90, 91, 92, 93, 95], true, direction);
+}
+
+
+/**
+ * Dog
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @param direction {number} facing direction
+ * @constructor
+ */
+function DogEnemy(x, y, direction) {
+    Enemy.call(this, x, y, 99, [131, 132, 133, 134], true, direction);
+}
+
+
+/**
+ * SS (blue) soldier
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @param direction {number} facing direction
+ * @constructor
+ */
+function SSEnemy(x, y, direction) {
+    Enemy.call(this, x, y, 138, [179, 180, 181, 183], true, direction);
+}
+
+
+/**
+ * Zombie soldier (green)
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @param direction {number} facing direction
+ * @constructor
+ */
+function ZombieEnemy(x, y, direction) {
+    Enemy.call(this, x, y, 187, [228, 229, 230, 232, 233], true, direction);
+}
+
+
+/**
+ * Officer (white)
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @param direction {number} facing direction
+ * @constructor
+ */
+function OfficerEnemy(x, y, direction) {
+    Enemy.call(this, x, y, 238, [279, 280, 281, 283, 284], true, direction);
+}
+
+
+/**
+ * Hans Grösse (boss)
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @constructor
+ */
+function HansEnemy(x, y) {
+    Enemy.call(this, x, y, 300, [304, 305, 306, 303]);
+}
+
+
+/**
+ * Doctor Schabbs (boss)
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @constructor
+ */
+function SchabbsEnemy(x, y) {
+    Enemy.call(this, x, y, 312, [313, 314, 315, 316]);
+}
+
+
+/**
+ * Fake Hitler (flying mini-boss)
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @constructor
+ */
+function FakeHitlerEnemy(x, y) {
+    Enemy.call(this, x, y, 321, [328, 329, 330, 331, 332, 333]);
+}
+
+
+/**
+ * Adolf Hitler (boss)
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @constructor
+ */
+function HitlerEnemy(x, y) {
+    Enemy.call(this, x, y, 349, [353, 354, 355, 356, 357, 358, 359, 352]);
+}
+
+
+/**
+ * Otto Giftmacher (boss)
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @constructor
+ */
+function OttoEnemy(x, y) {
+    Enemy.call(this, x, y, 364, [366, 367, 368, 369]);
+}
+
+
+/**
+ * Gretel Grösse (boss)
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @constructor
+ */
+function GretelEnemy(x, y) {
+    Enemy.call(this, x, y, 389, [393, 394, 395, 392]);
+}
+
+
+/**
+ * General Fettgesicht (boss)
+ * @param x {number} x-coordinate
+ * @param y {number} y-coordinate
+ * @constructor
+ */
+function FettgesichtEnemy(x, y) {
+    Enemy.call(this, x, y, 400, [404, 405, 406, 407]);
+}
+
+
+/**
+ * Decode a RLEW-encoded sequence of bytes
+ * @param inView {DataView} RLEW-encoded data
+ * @returns {DataView} decoded data
+ */
+function rlewDecode(inView) {
+    let mapHeadView = new DataView(MAPHEAD);
+    let rlewTag = mapHeadView.getUint16(0, true);
+    let size = inView.getUint16(0, true);
+    let buffer = new ArrayBuffer(size);
+    let outView = new DataView(buffer);
+    let inOffset = 2;
+    let outOffset = 0;
+
+    while (inOffset < inView.byteLength) {
+        let w = inView.getUint16(inOffset, true);
+        inOffset += 2;
+        if (w === rlewTag) {
+            let n = inView.getUint16(inOffset, true);
+            let x = inView.getUint16(inOffset + 2, true);
+            inOffset += 4;
+            for (let i = 0; i < n; i++) {
+                outView.setUint16(outOffset, x, true);
+                outOffset += 2;
+            }
+        } else {
+            outView.setUint16(outOffset, w, true);
+            outOffset += 2;
+        }
+    }
+    return outView;
+}
+
+
+/**
+ * Decode a Carmack-encoded sequence of bytes
+ * @param inView {DataView} Carmack-encoded data
+ * @returns {DataView} decoded data
+ */
+function carmackDecode(inView) {
+    let size = inView.getUint16(0, true);
+    let buffer = new ArrayBuffer(size);
+    let outView = new DataView(buffer);
+    let inOffset = 2;
+    let outOffset = 0;
+
+    while (inOffset < inView.byteLength) {
+        let x = inView.getUint8(inOffset + 1);
+        if (x === 0xA7 || x === 0xA8) {
+            // possibly a pointer
+            let n = inView.getUint8(inOffset);
+            if (n === 0) {
+                // exception (not really a pointer)
+                outView.setUint8(outOffset, inView.getUint8(inOffset + 2));
+                outView.setUint8(outOffset + 1, x);
+                inOffset += 3;
+                outOffset += 2;
+            } else if (x === 0xA7) {
+                // near pointer
+                let offset = 2 * inView.getUint8(inOffset + 2);
+                for (let i = 0; i < n; i++) {
+                    outView.setUint16(outOffset, outView.getUint16(outOffset - offset, true), true);
+                    outOffset += 2;
+                }
+                inOffset += 3;
+            } else {
+                // far pointer
+                let offset = 2 * inView.getUint16(inOffset + 2, true);
+                for (let i = 0; i < n; i++) {
+                    outView.setUint16(outOffset, outView.getUint16(offset + 2 * i, true), true);
+                    outOffset += 2;
+                }
+                inOffset += 4
+            }
+        } else {
+            // not a pointer
+            outView.setUint16(outOffset, inView.getUint16(inOffset, true), true);
+            inOffset += 2;
+            outOffset += 2;
+        }
+    }
+    return outView;
 }
 
 
@@ -350,78 +734,89 @@ function loadBytes(url, onload) {
 
 
 /**
- * Loads common game resources (wall, surface and prop textures).
+ * Load game data files:
+ * - MAPHEAD.WL6: offsets to the map data for each level in GAMEMAPS.WL6
+ * - GAMEMAPS.WL6: levels structure (walls, objects, enemies, etc.
+ * - VSWAP.WL6: graphics (walls and sprites) and sounds
  * When all resources are loaded, the level is loaded.
  */
 function loadResources() {
     /**
-     * This function is called after each resource is loaded. If all resources are loaded, the level is loaded.
+     * Check if all files are loaded. If so, load the level data.
      */
     function checkReady() {
-        if (wallTextures && surfaceTextures && spriteTextures) {
+        if (GAMEMAPS && MAPHEAD && VSWAP) {
             loadLevel();
         }
     }
-
     loadBytes(
-        "textures/walls.ppm",
-        function () {
-            wallTextures = new TileSet(this.response);
+        "GAMEMAPS.WL6",
+        function() {
+            GAMEMAPS = this.response;
             checkReady();
         }
     );
     loadBytes(
-        "textures/surfaces.ppm",
-        function () {
-            surfaceTextures = new TileSet(this.response);
+        "MAPHEAD.WL6",
+        function() {
+            MAPHEAD = this.response;
             checkReady();
         }
     );
     loadBytes(
-        "textures/sprites.ppm",
-        function () {
-            spriteTextures = new TileSet(this.response);
+        "VSWAP.WL6",
+        function() {
+            VSWAP = new DataView(this.response);
+            wallTexturesOffset = VSWAP.getUint32(6, true);
             checkReady();
         }
-    );
+    )
 }
 
 
 /**
  * Loads the level map selected in the "select" element on the page.
  * When the map is loaded, the setup function is called.
- *
- * Note: the select element is disabled and reactivated so that it loses focus and doesn't interact with the key
- * presses detection (for player movement).
  */
 function loadLevel() {
     let select = document.getElementById("level_select");
+    // the select element is disabled (and reactivated at the end) so that it loses focus and doesn't interact with
+    // the key presses detection (for player movement).
     select.disabled = true;
-    loadBytes(
-        "maps/" + select.value + ".map",
-        function() {
-            let bytes = new Uint8Array(this.response);
-            plane0 = [];
-            plane1 = [];
-            for (let i = 0; i < 64; i++) {
-                plane0.push(bytes.slice(64 * i, 64 * (i+1)));
-                plane1.push(bytes.slice(4096 + 64 * i, 4096 + 64 * (i+1)));
-            }
-            plane2 = [];
-            for (let i = 0; i < 64; i++) {
-                let line = Array(64);
-                line.fill(false);
-                plane2.push(line);
-            }
-            setup();
-        }
+    let level = parseInt(select.value);
+
+    let mapHeadView = new DataView(MAPHEAD);
+    let offset = mapHeadView.getUint32(2 + 4 * level, true);
+    let mapHeader = new DataView(GAMEMAPS, offset, 42);
+    let plane0View = new DataView(
+        GAMEMAPS,
+        mapHeader.getUint32(0, true),
+        mapHeader.getUint16(12, true),
     );
+    plane0 = rlewDecode(carmackDecode(plane0View));
+    let plane1View = new DataView(
+        GAMEMAPS,
+        mapHeader.getUint32(4, true),
+        mapHeader.getUint16(14, true),
+    );
+    plane1 = rlewDecode(carmackDecode(plane1View));
+    plane2 = [] ;
+    for (let i = 0; i < 64; i++) {
+        let line = Array(64);
+        line.fill(false);
+        plane2.push(line);
+    }
+    setup();
+    // reactivate the select element
     select.disabled = false;
 }
 
 
 /**
- * Prepares the level after the map is loaded (places props and the player)
+ * Prepare the level after the map is loaded:
+ * - place things
+ * - place the player
+ * - make the plane2 array of blocking cells
  */
 function setup() {
     // setup things
@@ -429,90 +824,81 @@ function setup() {
     doorTimers = [];
     wallTimers = [];
     animatedEnemies = [];
+    spriteTextures = [];
     for (let y = 0; y < 64; y++) {
         for (let x = 0; x < 64; x++) {
             // structural
-            let m0 = plane0[y][x];
+            let m0 = map0(x, y);
             if (m0 <= 63) {
                 // wall
-                plane2[y][x] = true;
+                plane2[x][y] = true;
             } else if (90 <= m0 && m0 <= 101) {
                 // door
-                plane2[y][x] = true;
+                plane2[x][y] = true;
             }
-
             // entities
-            let m1 = plane1[y][x];
+            let m1 = map1(x, y);
             if (m1 === 19) {
-                player = new Player(x + .5, y + .5, 0, -1);
+                player = new Player(x, y, 0, -1);
             } else if (m1 === 20) {
-                player = new Player(x + .5, y + .5, 1, 0);
+                player = new Player(x, y, 1, 0);
             } else if (m1 === 21) {
-                player = new Player(x + .5, y + .5, 0, 1);
+                player = new Player(x, y, 0, 1);
             } else if (m1 === 22) {
-                player = new Player(x + .5, y + .5, -1, 0);
+                player = new Player(x, y, -1, 0);
             } else if (m1 >= 23 && m1 <= 74) {
                 // props
-                things.push(new Thing(x + .5, y + .5, m1 - 21));
+                things.push(new Thing(x, y, m1 - 21));
                 if ([24, 25, 26, 28, 30, 31, 33, 34, 35, 36, 38, 39, 40, 41, 45, 58, 59, 60, 62, 63, 67, 68, 69,
                     71, 73].indexOf(m1) >= 0) {
                     // blocking prop
-                    plane2[y][x] = true;
+                    plane2[x][y] = true;
                 }
             } else if (m1 === 124) {
                 // dead guard
-                things.push(new Thing(x + .5, y + .5, 62));
+                things.push(new Thing(x, y, 95));
             } else if (m1 >= 108) {
                 // enemy
-                if ((108 <= m1 && m1 < 116)) {  // Guard
-                    things.push(new Enemy(x + .5, y + .5, 50, 62, true, (m1 - 108) % 4));
+                if ((108 <= m1 && m1 < 116)) {
+                    things.push(new GuardEnemy(x, y, (m1 - 108) % 4));
                 } else if ((144 <= m1 && m1 < 152)) {
-                    things.push(new Enemy(x + .5, y + .5, 50, 62, true, (m1 - 144) % 4));
-
-                } else if ((116 <= m1 && m1 < 124)) {   // Officer
-                    things.push(new Enemy(x + .5, y + .5, 100, 112, true, (m1 - 116) % 4));
+                    things.push(new GuardEnemy(x, y, (m1 - 144) % 4));
+                } else if ((116 <= m1 && m1 < 124)) {
+                    things.push(new OfficerEnemy(x, y, (m1 - 116) % 4));
                 } else if ((152 <= m1 && m1 < 160)) {
-                    things.push(new Enemy(x + .5, y + .5, 100, 112, true, (m1 - 152) % 4));
-
-                } else if ((126 <= m1 && m1 < 134)) {   // SS
-                    things.push(new Enemy(x + .5, y + .5, 75, 86, true, (m1 - 126) % 4));
+                    things.push(new OfficerEnemy(x, y, (m1 - 152) % 4));
+                } else if ((126 <= m1 && m1 < 134)) {
+                    things.push(new SSEnemy(x, y, (m1 - 126) % 4));
                 } else if ((162 <= m1 && m1 < 170)) {
-                    things.push(new Enemy(x + .5, y + .5, 75, 86, true, (m1 - 162) % 4));
-
-                } else if ((134 <= m1 && m1 < 142)) {   // Dog
-                    things.push(new Enemy(x + .5, y + .5, 63, 74, true, (m1 - 134) % 4));
+                    things.push(new SSEnemy(x, y, (m1 - 162) % 4));
+                } else if ((134 <= m1 && m1 < 142)) {
+                    things.push(new DogEnemy(x, y, (m1 - 134) % 4));
                 } else if ((170 <= m1 && m1 < 178)) {
-                    things.push(new Enemy(x + .5, y + .5, 63, 74, true, (m1 - 170) % 4));
-
-                } else if ((216 <= m1 && m1 < 224)) {   // Mutant
-                    things.push(new Enemy(x + .5, y + .5, 87, 99, true, (m1 - 116) % 4));
+                    things.push(new DogEnemy(x, y, (m1 - 170) % 4));
+                } else if ((216 <= m1 && m1 < 224)) {
+                    things.push(new ZombieEnemy(x, y, (m1 - 116) % 4));
                 } else if ((234 <= m1 && m1 < 242)) {
-                    things.push(new Enemy(x + .5, y + .5, 87, 99, true, (m1 - 144) % 4));
-
+                    things.push(new ZombieEnemy(x, y, (m1 - 144) % 4));
                 } else if (m1 === 160) {
-                    // fake Hitler
-                    things.push(new Enemy(x + .5, y + .5, 127, 133, false));
+                    things.push(new FakeHitlerEnemy(x, y));
                 } else if (m1 === 178) {
-                    // Adolf Hitler
-                    things.push(new Enemy(x + .5, y + .5, 134, 142, false));
+                    things.push(new HitlerEnemy(x, y));
                 } else if (m1 === 179) {
-                    // General Fettgesicht
-                    things.push(new Enemy(x + .5, y + .5, 153, 157, false));
+                    things.push(new FettgesichtEnemy(x, y));
                 } else if (m1 === 196) {
-                    // Doctor Schabbs
-                    things.push(new Enemy(x + .5, y + .5, 122, 126, false));
+                    things.push(new SchabbsEnemy(x, y));
                 } else if (m1 === 197) {
-                    // Gretel Grösse
-                    things.push(new Enemy(x + .5, y + .5, 148, 152, false));
+                    things.push(new GretelEnemy(x, y));
                 } else if (m1 === 214) {
-                    // Hans Grösse
-                    things.push(new Enemy(x + .5, y + .5, 117, 121, false));
+                    things.push(new HansEnemy(x, y));
                 } else if (m1 === 215) {
-                    // Otto Giftmacher
-                    things.push(new Enemy(x + .5, y + .5, 143, 147, false));
+                    things.push(new OttoEnemy(x, y));
                 } else if (224 <= m1 && m1 < 228) {
                     // Ghost
-                    things.push(new Thing(x + .5, y + .5, 113 + m1 - 224));
+                    let ghost = new Thing(x, y, 0);
+                    let spriteIndex = 288 + 2 * (m1 - 224);
+                    ghost.startAnimation(new Animation([spriteIndex, spriteIndex + 1], true));
+                    things.push(ghost);
                 }
             }
         }
@@ -523,6 +909,82 @@ function setup() {
         isDrawing = true;
         window.requestAnimationFrame(draw);
     }
+}
+
+
+function map0(x, y) {
+    return plane0.getUint16(2 * (x + 64 * y), true);
+}
+
+function setMap0(x, y, value) {
+    plane0.setUint16(2 * (x + 64 * y), value, true);
+}
+
+function map1(x, y) {
+    return plane1.getUint16(2 * (x + 64 * y), true);
+}
+
+function setMap1(x, y, value) {
+    plane1.setUint16(2 * (x + 64 * y), value, true);
+}
+
+
+/**
+ * Returns the palette index of a pixel from a wall texture
+ * @param x {number} x-coordinate of the required pixel (float in [0, 1))
+ * @param y {number} y-coordinate of the required pixel (float in [0, 1))
+ * @param index {number} index of the wall texture
+ * @returns {number} palette index of the corresponding pixel
+ */
+function getWallTexel(x, y, index) {
+    return VSWAP.getUint8(wallTexturesOffset + 4096 * index + ~~(64 * y) + 64 * ~~(64 * x));
+}
+
+
+/**
+ * Returns the palette index of a pixel from a sprite texture
+ * @param x {number} x-coordinate of the required pixel (float in [0, 1))
+ * @param y {number} y-coordinate of the required pixel (float in [0, 1))
+ * @param index {number} index of the wall texture
+ * @returns {number} palette index of the corresponding pixel
+ */
+function getSpriteTexel(x, y, index) {
+    if (!spriteTextures[index]) {
+        makeSprite(index);
+    }
+    return spriteTextures[index][~~(64 * y) + 64 * ~~(64 * x)];
+}
+
+
+/**
+ * Decode a sprite image from the VSWAP.WL6 data file.
+ * The decoded sprite is added to the spriteTextures array.
+ * @param index {number} index of the sprite to decode
+ */
+function makeSprite(index) {
+    let firstSprite = VSWAP.getUint16(2, true);
+    let spriteOffset = VSWAP.getUint32(6 + 4 * (firstSprite + index), true);
+    let firstCol = VSWAP.getUint16(spriteOffset, true);
+    let lastCol = VSWAP.getUint16(spriteOffset + 2, true);
+    let nbCol = lastCol - firstCol + 1;
+    let pixelPoolOffset = spriteOffset + 4 + 2 * nbCol;
+    let sprite = new Array(4096);
+    for (let col = firstCol; col <= lastCol ; col++) {
+        let colOffset = spriteOffset + VSWAP.getUint16(spriteOffset + 4 + 2 * (col - firstCol), true);
+        while (true) {
+            let endRow = VSWAP.getUint16(colOffset, true) / 2;
+            if (endRow === 0) {
+                break;
+            }
+            let startRow = VSWAP.getUint16(colOffset + 4, true) / 2;
+            colOffset += 6;
+            for (let row = startRow; row < endRow; row++) {
+                sprite[64 * col + row] = VSWAP.getUint8(pixelPoolOffset);
+                pixelPoolOffset += 1;
+            }
+        }
+    }
+    spriteTextures[index] = sprite;
 }
 
 
@@ -550,7 +1012,7 @@ function draw() {
             doorTimers.splice(i, 1);    // remove the timer
             i -= 1; // adjust loop index to compensate for item removal
             if (timer.opening) {
-                plane2[timer.y][timer.x] = false;
+                plane2[timer.x][timer.y] = false;
             }
         }
     }
@@ -564,49 +1026,33 @@ function draw() {
             let y = timer.y;
             let dx = timer.dx;
             let dy = timer.dy;
-            let wallValue = plane0[y][x];
-            plane0[y][x] = plane0[y + dy][x + dx];
-            plane0[y + dy][x + dx] = wallValue;
-            plane2[y][x] = false;
-            plane2[y + dy][x + dx] = true;
+            let wallValue = map0(x, y);
+            setMap0(x, y, map0(x + dx, y + dy));
+            setMap0(x + dx, y + dy, wallValue);
+            plane2[x][y] = false;
+            plane2[x + dx][y + dy] = true;
             timer.steps -= 1;
             if (timer.steps > 0) {
-                plane1[y][x] = 0;
-                plane1[y + dy][x + dx] = 98;
+                setMap1(x, y, 0);
+                setMap1(x + dx, y + dy, 98);
                 timer.t = 0;
                 timer.x += dx;
                 timer.y += dy;
             } else {
-                plane1[y][x] = 0;
+                setMap1(x, y, 0);
                 doorTimers.splice(i, 1);
                 i -= 1;
             }
         }
     }
 
-    // update animated enemies
-    for (let i = 0; i < animatedEnemies.length; i++) {
-        let e = animatedEnemies[i];
-        e.animationCounter += 1;
-        if (e.animationCounter >= 8) {
-            e.spriteIndex += 1;
-            e.animationCounter = 0;
-        }
-        if (e.spriteIndex >= e.animationEndIndex) {
-            animatedEnemies.splice(i, 1);
-            i -= 1;
-        }
-    }
+    // update player
+    player.update();
 
     // draw visible game elements
-    let bgWidth = pixelWidth * zoom;
-    let bgHeight = pixelHeight * zoom / 2;
-    context.fillStyle = 'rgb(56, 56, 56)';
-    context.fillRect(0, 0, bgWidth, bgHeight);
-    context.fillStyle = 'rgb(113, 113, 113)';
-    context.fillRect(0, bgHeight, bgWidth, bgHeight);
     drawWalls();
     drawThings();
+    drawWeapon();
 
     context.putImageData(imageData, 0, 0);
     // call the draw function on next frame
@@ -664,11 +1110,11 @@ function drawWalls() {
         let textureIndex;
 
         while (true) {
-            m0 = plane0[cy][cx];
+            m0 = map0(cx, cy);
             if (m0 <= 63) {
                 // hit a wall
                 let wallShift = 0;
-                if (plane1[cy][cx] === 98) {
+                if (map1(cx, cy) === 98) {
                     // pushwall
                     let timer = wallTimers.find(function(obj) { return obj.x === cx && obj.y === cy; });
                     if (timer) {
@@ -735,7 +1181,7 @@ function drawWalls() {
                         doorShift = 1 - timer.t / 64;
                     }
                 }
-                if (!plane2[cy][cx]) {
+                if (!plane2[cx][cy]) {
                     doorShift = 1;
                 }
 
@@ -863,28 +1309,24 @@ function drawWalls() {
         for (let j = 0; j < pixelHeight; j++) {
             if (j <= pixelHeight / 2 - h) {
                 // draw ceiling and floor
-                if (surfaceTexturesOn) {
-                    let d = wallHeight / (pixelHeight / 2 - j);
-                    let fx = sx + (rx - sx) * (d - 1) / (t - 1);
-                    let fy = sy + (ry - sy) * (d - 1) / (t - 1);
-                    let bytes = surfaceTextures.bytes;
-                    let offset = surfaceTextures.getTexelOffset(fx % 1, fy % 1, 1);
-                    drawPixel(i, j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
-                    offset = surfaceTextures.getTexelOffset(fx % 1, fy % 1, 0);
-                    drawPixel(i, pixelHeight - j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
-                } else {
+                // if (surfaceTexturesOn) {
+                //     let d = wallHeight / (pixelHeight / 2 - j);
+                //     let fx = sx + (rx - sx) * (d - 1) / (t - 1);
+                //     let fy = sy + (ry - sy) * (d - 1) / (t - 1);
+                //     let bytes = surfaceTextures.bytes;
+                //     let offset = surfaceTextures.getTexelOffset(fx % 1, fy % 1, 1);
+                //     drawPixel(i, j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
+                //     offset = surfaceTextures.getTexelOffset(fx % 1, fy % 1, 0);
+                //     drawPixel(i, pixelHeight - j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
+                // } else {
                     // draw ceiling and floor (plain color, as in original game)
-                    drawPixel(i, j, 56, 56, 56);
-                    drawPixel(i, pixelHeight - j, 113, 113, 113);
-                }
+                    drawPixel(i, j, 29);
+                    drawPixel(i, pixelHeight - 1 - j, 25);
+                // }
             } else if (j > pixelHeight / 2 + h) {
                 break;
             } else {
-                // draw wall
-                let bytes = wallTextures.bytes;
-                let offset = wallTextures.getTexelOffset(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
-                drawPixel(i, j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
-                // paintPixel(i, j, wallTextures, tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex);
+                drawPixel(i, j, getWallTexel(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex));
             }
         }
     }
@@ -913,9 +1355,7 @@ function drawThings() {
         for (let x = Math.max(tx, 0); x < Math.min(tx + tw, pixelWidth); x++) {
             if (t.rx < zIndex[x]) {
                 for (let y = Math.max(ty, 0); y < Math.min(ty + th, pixelHeight); y++) {
-                    let bytes = spriteTextures.bytes;
-                    let offset = spriteTextures.getTexelOffset((x - tx) / tw, (y - ty) / th, t.spriteIndex + angle);
-                    drawPixel(x, y, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
+                    drawPixel(x, y, getSpriteTexel((x - tx) / tw, (y - ty) / th, t.spriteIndex + angle));
                 }
             }
         }
@@ -923,56 +1363,33 @@ function drawThings() {
 }
 
 
-/**
- * Checks whether the player can go to the given location
- * @param x {number} x-coordinate of the position
- * @param y {number} y-coordinate of the position
- * @returns {boolean} whether the location is valid for the player
- */
-function isValidPosition(x, y) {
-    let r = player.radius;
-    let fx = x % 1;
-    x = ~~x;
-    let fy = y % 1;
-    y = ~~y;
-
-    if (plane2[y][x]) return false;
-    if (fx < r) {
-        if (plane2[y][x - 1]) return false;
-        if (fy < r && plane2[y - 1][x - 1]) return false;
-        if (fy > 1 - r && plane2[y + 1][x - 1]) return false;
+function drawWeapon() {
+    if (!spriteTextures[player.weaponSprite]) {
+        makeSprite(player.weaponSprite);
     }
-    if (fx > 1 - r) {
-        if (plane2[y][x + 1]) return false;
-        if (fy < r && plane2[y - 1][x + 1]) return false;
-        if (fy > 1 - r && plane2[y + 1][x + 1]) return false;
+    for (let x = 0; x < 64; x++) {
+        for (let y = 0; y < 64; y++) {
+            drawPixel(x + 48, y + 36, spriteTextures[player.weaponSprite][64 * x + y], 4 / zoom);
+        }
     }
-    if (fy < r && plane2[y - 1][x]) return false;
-    if (fy > 1 - r && plane2[y + 1][x]) return false;
-    return true;
 }
 
 
 /**
  * Draws a pixel on the canvas by modifying the pixels array
- * @param x x-coordinate of the screen pixel to change
- * @param y y-coordinate of the screen pixel to change
- * @param r red component
- * @param g red component
- * @param b red component
- * Note: if r is 255, the pixel is not drawn (used for transparency effects)
+ * @param x {number} x-coordinate of the screen pixel to change
+ * @param y {number} y-coordinate of the screen pixel to change
+ * @param col {number} palette index of color
  */
-function drawPixel(x, y, r, g, b) {
-    if (r === 255) {
+function drawPixel(x, y, col, scale=1) {
+    scale *= zoom;
+    if (col === undefined) {
         return;
     }
-    for (let i = 0; i < zoom; i++) {
-        for (let j = 0; j < zoom; j++) {
-            let pixelOffset = 4 * (pixelWidth * zoom * (zoom * y + j) + zoom * x + i);
-            pixels[pixelOffset] = r;
-            pixels[pixelOffset + 1] = g;
-            pixels[pixelOffset + 2] = b;
-            pixels[pixelOffset + 3] = 255;
+    for (let i = 0; i < scale; i++) {
+        for (let j = 0; j < scale; j++) {
+            let pixelOffset = 4 * (zoom * pixelWidth * (scale * y + j) + scale * x + i);
+            pixels.setUint32(pixelOffset, palette[col], true);
         }
     }
 }
@@ -989,66 +1406,17 @@ function setupPage() {
     canvas.width = pixelWidth * zoom;
     canvas.height = pixelHeight * zoom;
     context = canvas.getContext("2d");
-    imageData = context.getImageData(0, 0, pixelWidth * zoom, pixelHeight * zoom);
-    pixels = imageData.data;
-
-    canvas.addEventListener("touchstart", handleTouchStart, false);
-    canvas.addEventListener("touchmove", handleTouchMove, false);
-    canvas.addEventListener("touchend", handleTouchEnd, false);
-    canvas.addEventListener("touchcancel", handleTouchEnd, false);
-    canvas.addEventListener("click", activate, false);
+    imageData = new ImageData(pixelWidth * zoom, pixelHeight * zoom);
+    pixels = new DataView(imageData.data.buffer);
 
     document.onkeydown = function(e) {
-        if (e.key === "Control") { shoot(); }
+        if (e.key === "Control") { player.shoot(); }
         pressedKeys[e.key] = true;
     };
     document.onkeyup = function(e) { pressedKeys[e.key] = false; };
     document.onkeypress = function(e) {
         if (e.key === " ") {
-            activate();
-        }
-    }
-}
-
-
-/**
- * Activates a cell in front of the player (open/close door, push secret wall)
- */
-function activate() {
-    let x = ~~player.x;
-    let y = ~~player.y;
-    let dx = 0;
-    let dy = 0;
-    if (Math.abs(player.dx) >= Math.abs(player.dy)) {
-        dx = player.dx >= 0 ? 1 : -1;
-        x += dx;
-    } else {
-        dy = player.dy >= 0 ? 1 : -1;
-        y += dy;
-    }
-    let m0 = plane0[y][x];
-    let m1 = plane1[y][x];
-    if (90 <= m0 && m0 <= 101) {
-        // door
-        let timer = doorTimers.find(function(obj) {
-            return obj.x === x && obj.y === y;
-        });
-        if (!timer) {
-            let opening = plane2[y][x];
-            doorTimers.push({x: x, y: y, t: 0, opening: opening});
-            if (!opening) {
-                // if door is closing make it blocking immediately
-                plane2[y][x] = true;
-            }
-        }
-    } else if (m1 === 98) {
-        // pushwall
-        let timer = wallTimers.find(function(obj) {
-            return obj.x === x && obj.y === y;
-        });
-        if (!timer && plane0[y + dy][x + dx] >= 106) {
-            // there is no active timer for this wall, and it can move backwards
-            wallTimers.push({x: x, y: y, t: 0, dx: dx, dy: dy, steps: 2});
+            player.activate();
         }
     }
 }
@@ -1091,77 +1459,6 @@ function toggleSurfaceTextures() {
     }
     button.disabled = false;
 }
-
-
-/**
- * Start tracking a touch event
- * @param e touch event
- */
-function handleTouchStart(e) {
-    if (currentTouch === undefined) {
-        currentTouch = e.changedTouches[0];
-    }
-}
-
-
-/**
- * Track a moving touch event
- * @param e touch event
- */
-function handleTouchMove(e) {
-    e.preventDefault();
-    if (currentTouch) {
-        let touch;
-        for (let i = 0; i < e.changedTouches.length; i++) {
-            if (e.changedTouches[i].identifier === currentTouch.identifier) {
-                touch = e.changedTouches[i];
-                break;
-            }
-        }
-        if (touch) {
-            player.move(0.01 * (touch.screenY - currentTouch.screenY));
-            player.turn(-0.005 * (touch.screenX - currentTouch.screenX));
-            currentTouch = touch;
-        }
-    }
-}
-
-
-/**
- * Stop tracking a touch event
- * @param e touch event
- */
-function handleTouchEnd(e) {
-    e.preventDefault();
-    if (currentTouch) {
-        let touch;
-        for (let i = 0; i < e.changedTouches.length; i++) {
-            if (e.changedTouches[i].identifier === currentTouch.identifier) {
-                touch = e.changedTouches[i];
-                break;
-            }
-        }
-        if (touch) {
-            activate();
-            currentTouch = undefined;
-        }
-    }
-}
-
-
-function shoot() {
-    let d = zIndex[pixelWidth / 2];
-    for (let i = things.length - 1; i >= 0; i--) {
-        let t = things[i];
-        if (t.rx < 0) { continue; }
-        if (t.rx >= d) { break; }
-        if (t instanceof Enemy && Math.abs(t.ry) <= .5 && t.alive) {
-            t.die();
-            return;
-        }
-    }
-}
-
 
 
 setupPage();

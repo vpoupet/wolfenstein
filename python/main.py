@@ -290,24 +290,27 @@ def make_sprite_tileset(output_file="sprites.ppm", indexes=None):
         fp.write(tileset)
 
 
-idx = []
-for x in (
-    range(50),  # props
-    range(50, 58), [90, 91, 92, 93, 95],  # soldier
-    range(99, 107), range(131, 135),  # dog
-    range(138, 146), [179, 180, 181, 183],  # SS soldier
-    range(187, 195), [228, 229, 230, 232, 233],  # zombie soldier
-    range(238, 246), [279, 280, 281, 283, 284],  # officer
-    [288, 290, 292, 294],  # ghosts
-    [300, 304, 305, 306, 303],  # Hans Grösse
-    range(312, 317),  # Doctor Schabbs
-    [321], range(328, 334),  # Fake Hitler
-    [349], range(353, 360), [352],  # Adolf Hitler
-    [364], range(366, 370),  # Otto Giftmacher
-    [389], [393, 394, 395, 392],  # Gretel Grösse
-    [400], range(404, 408),  # General Fettgesicht
-    range(421, 426),
-):
-    idx += x
+for i in range(1000):
+    make_sprite_tileset('{:03}.ppm'.format(i), [i])
 
-make_sprite_tileset('things.ppm', idx)
+# idx = []
+# for x in (
+#     range(50),  # props
+#     range(50, 58), [90, 91, 92, 93, 95],  # soldier
+#     range(99, 107), range(131, 135),  # dog
+#     range(138, 146), [179, 180, 181, 183],  # SS soldier
+#     range(187, 195), [228, 229, 230, 232, 233],  # zombie soldier
+#     range(238, 246), [279, 280, 281, 283, 284],  # officer
+#     [288, 290, 292, 294],  # ghosts
+#     [300, 304, 305, 306, 303],  # Hans Grösse
+#     range(312, 317),  # Doctor Schabbs
+#     [321], range(328, 334),  # Fake Hitler
+#     [349], range(353, 360), [352],  # Adolf Hitler
+#     [364], range(366, 370),  # Otto Giftmacher
+#     [389], [393, 394, 395, 392],  # Gretel Grösse
+#     [400], range(404, 408),  # General Fettgesicht
+#     range(421, 426),
+# ):
+#     idx += x
+#
+# make_sprite_tileset('things.ppm', idx)

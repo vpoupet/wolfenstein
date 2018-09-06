@@ -6,77 +6,78 @@
     </head>
     <body>
         <canvas id="game_view"></canvas>
-        <br />
+        <br>
         <h3>Settings</h3>
         Level select: <select id="level_select" onchange="loadLevel()">
-            <option value="Wolf1Map1">Episode 1 - Floor 1</option>
-            <option value="Wolf1Map2">Episode 1 - Floor 2</option>
-            <option value="Wolf1Map3">Episode 1 - Floor 3</option>
-            <option value="Wolf1Map4">Episode 1 - Floor 4</option>
-            <option value="Wolf1Map5">Episode 1 - Floor 5</option>
-            <option value="Wolf1Map6">Episode 1 - Floor 6</option>
-            <option value="Wolf1Map7">Episode 1 - Floor 7</option>
-            <option value="Wolf1Map8">Episode 1 - Floor 8</option>
-            <option value="Wolf1Boss">Episode 1 - Floor 9 (Boss)</option>
-            <option value="Wolf1Secret">Episode 1 - Floor 10 (Secret)</option>
-            <option value="Wolf2Map1">Episode 2 - Floor 1</option>
-            <option value="Wolf2Map2">Episode 2 - Floor 2</option>
-            <option value="Wolf2Map3">Episode 2 - Floor 3</option>
-            <option value="Wolf2Map4">Episode 2 - Floor 4</option>
-            <option value="Wolf2Map5">Episode 2 - Floor 5</option>
-            <option value="Wolf2Map6">Episode 2 - Floor 6</option>
-            <option value="Wolf2Map7">Episode 2 - Floor 7</option>
-            <option value="Wolf2Map8">Episode 2 - Floor 8</option>
-            <option value="Wolf2Boss">Episode 2 - Floor 9 (Boss)</option>
-            <option value="Wolf2Secret">Episode 2 - Floor 10 (Secret)</option>
-            <option value="Wolf3Map1">Episode 3 - Floor 1</option>
-            <option value="Wolf3Map2">Episode 3 - Floor 2</option>
-            <option value="Wolf3Map3">Episode 3 - Floor 3</option>
-            <option value="Wolf3Map4">Episode 3 - Floor 4</option>
-            <option value="Wolf3Map5">Episode 3 - Floor 5</option>
-            <option value="Wolf3Map6">Episode 3 - Floor 6</option>
-            <option value="Wolf3Map7">Episode 3 - Floor 7</option>
-            <option value="Wolf3Map8">Episode 3 - Floor 8</option>
-            <option value="Wolf3Boss">Episode 3 - Floor 9 (Boss)</option>
-            <option value="Wolf3Secret">Episode 3 - Floor 10 (Secret)</option>
-            <option value="Wolf4Map1">Episode 4 - Floor 1</option>
-            <option value="Wolf4Map2">Episode 4 - Floor 2</option>
-            <option value="Wolf4Map3">Episode 4 - Floor 3</option>
-            <option value="Wolf4Map4">Episode 4 - Floor 4</option>
-            <option value="Wolf4Map5">Episode 4 - Floor 5</option>
-            <option value="Wolf4Map6">Episode 4 - Floor 6</option>
-            <option value="Wolf4Map7">Episode 4 - Floor 7</option>
-            <option value="Wolf4Map8">Episode 4 - Floor 8</option>
-            <option value="Wolf4Boss">Episode 4 - Floor 9 (Boss)</option>
-            <option value="Wolf4Secret">Episode 4 - Floor 10 (Secret)</option>
-            <option value="Wolf5Map1">Episode 5 - Floor 1</option>
-            <option value="Wolf5Map2">Episode 5 - Floor 2</option>
-            <option value="Wolf5Map3">Episode 5 - Floor 3</option>
-            <option value="Wolf5Map4">Episode 5 - Floor 4</option>
-            <option value="Wolf5Map5">Episode 5 - Floor 5</option>
-            <option value="Wolf5Map6">Episode 5 - Floor 6</option>
-            <option value="Wolf5Map7">Episode 5 - Floor 7</option>
-            <option value="Wolf5Map8">Episode 5 - Floor 8</option>
-            <option value="Wolf5Boss">Episode 5 - Floor 9 (Boss)</option>
-            <option value="Wolf5Secret">Episode 5 - Floor 10 (Secret)</option>
-            <option value="Wolf6Map1">Episode 6 - Floor 1</option>
-            <option value="Wolf6Map2">Episode 6 - Floor 2</option>
-            <option value="Wolf6Map3">Episode 6 - Floor 3</option>
-            <option value="Wolf6Map4">Episode 6 - Floor 4</option>
-            <option value="Wolf6Map5">Episode 6 - Floor 5</option>
-            <option value="Wolf6Map6">Episode 6 - Floor 6</option>
-            <option value="Wolf6Map7">Episode 6 - Floor 7</option>
-            <option value="Wolf6Map8">Episode 6 - Floor 8</option>
-            <option value="Wolf6Boss">Episode 6 - Floor 9 (Boss)</option>
-            <option value="Wolf6Secret">Episode 6 - Floor 10 (Secret)</option>
-        </select><br />
-        Resolution: <button id="resolutionButton" onclick="toggleResolution()">320 x 200</button> <br />
-        Floor and ceiling textures: <button id="surfaceButton" onclick="toggleSurfaceTextures()">On</button> <br />
+            <option value="0">Episode 1 - Floor 1</option>
+            <option value="1">Episode 1 - Floor 2</option>
+            <option value="2">Episode 1 - Floor 3</option>
+            <option value="3">Episode 1 - Floor 4</option>
+            <option value="4">Episode 1 - Floor 5</option>
+            <option value="5">Episode 1 - Floor 6</option>
+            <option value="6">Episode 1 - Floor 7</option>
+            <option value="7">Episode 1 - Floor 8</option>
+            <option value="8">Episode 1 - Floor 9 (Boss)</option>
+            <option value="9">Episode 1 - Floor 10 (Secret)</option>
+            <option value="10">Episode 2 - Floor 1</option>
+            <option value="11">Episode 2 - Floor 2</option>
+            <option value="12">Episode 2 - Floor 3</option>
+            <option value="13">Episode 2 - Floor 4</option>
+            <option value="14">Episode 2 - Floor 5</option>
+            <option value="15">Episode 2 - Floor 6</option>
+            <option value="16">Episode 2 - Floor 7</option>
+            <option value="17">Episode 2 - Floor 8</option>
+            <option value="18">Episode 2 - Floor 9 (Boss)</option>
+            <option value="19">Episode 2 - Floor 10 (Secret)</option>
+            <option value="20">Episode 3 - Floor 1</option>
+            <option value="21">Episode 3 - Floor 2</option>
+            <option value="22">Episode 3 - Floor 3</option>
+            <option value="23">Episode 3 - Floor 4</option>
+            <option value="24">Episode 3 - Floor 5</option>
+            <option value="25">Episode 3 - Floor 6</option>
+            <option value="26">Episode 3 - Floor 7</option>
+            <option value="27">Episode 3 - Floor 8</option>
+            <option value="28">Episode 3 - Floor 9 (Boss)</option>
+            <option value="29">Episode 3 - Floor 10 (Secret)</option>
+            <option value="30">Episode 4 - Floor 1</option>
+            <option value="31">Episode 4 - Floor 2</option>
+            <option value="32">Episode 4 - Floor 3</option>
+            <option value="33">Episode 4 - Floor 4</option>
+            <option value="34">Episode 4 - Floor 5</option>
+            <option value="35">Episode 4 - Floor 6</option>
+            <option value="36">Episode 4 - Floor 7</option>
+            <option value="37">Episode 4 - Floor 8</option>
+            <option value="38">Episode 4 - Floor 9 (Boss)</option>
+            <option value="39">Episode 4 - Floor 10 (Secret)</option>
+            <option value="40">Episode 5 - Floor 1</option>
+            <option value="41">Episode 5 - Floor 2</option>
+            <option value="42">Episode 5 - Floor 3</option>
+            <option value="43">Episode 5 - Floor 4</option>
+            <option value="44">Episode 5 - Floor 5</option>
+            <option value="45">Episode 5 - Floor 6</option>
+            <option value="46">Episode 5 - Floor 7</option>
+            <option value="47">Episode 5 - Floor 8</option>
+            <option value="48">Episode 5 - Floor 9 (Boss)</option>
+            <option value="49">Episode 5 - Floor 10 (Secret)</option>
+            <option value="50">Episode 6 - Floor 1</option>
+            <option value="51">Episode 6 - Floor 2</option>
+            <option value="52">Episode 6 - Floor 3</option>
+            <option value="53">Episode 6 - Floor 4</option>
+            <option value="54">Episode 6 - Floor 5</option>
+            <option value="55">Episode 6 - Floor 6</option>
+            <option value="56">Episode 6 - Floor 7</option>
+            <option value="57">Episode 6 - Floor 8</option>
+            <option value="58">Episode 6 - Floor 9 (Boss)</option>
+            <option value="59">Episode 6 - Floor 10 (Secret)</option>
+        </select><br>
+        Resolution: <button id="resolutionButton" onclick="toggleResolution()">320 x 200</button><br>
+        <!--Floor and ceiling textures: <button id="surfaceButton" onclick="toggleSurfaceTextures()">On</button><br>-->
         <script src="script.js"></script>
         <h3>Instructions :</h3>
         <ul>
             <li>Move with arrow keys</li>
             <li>Open/close doors and secrets with Space</li>
+            <li>Shoot with Control</li>
         </ul>
     </body>
 </html>
