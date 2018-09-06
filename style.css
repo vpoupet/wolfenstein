@@ -1,0 +1,55 @@
+body {
+    display: flex;
+    background-color: gray;
+    font-family: "Impact", "sans-serif";
+    font-size: 24px;
+    text-shadow: 4px 4px black;
+}
+
+#main {
+    color: rgb(219, 219, 255);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 700px;
+    margin: 0 0 0 auto;
+    background-color: rgb(25, 64, 64);
+    padding: 10px;
+}
+
+#score {
+    display: flex;
+    justify-content: space-between;
+    width: 640px;
+    background-color: rgb(3, 0, 166);
+    border: 4px solid;
+    border-color: rgb(93, 97, 255) rgb(0, 0, 65) rgb(0, 0, 65) rgb(93, 97, 255);
+}
+
+#game_view {
+    border: 4px solid;
+    border-color: black rgb(46, 105, 106) rgb(46, 105, 106) black;
+}
+
+#options {
+    padding-top: 130px;
+    margin: 0 auto 0 0;
+    display: flex;
+    flex-direction: column;
+    color: rgb(142, 142, 142);
+    width: 400px;
+    background: top center url('images/options.png') no-repeat rgb(140, 0, 0);
+
+}
+
+.optionblock {
+    background-color: rgb(89, 0, 0);
+    margin: 4px;
+    border: 4px solid;
+    padding: 0 4px;
+    border-color: rgb(65, 0, 0) rgb(239, 0, 0) rgb(239, 0, 0) rgb(65, 0, 0);
+}
+
+.optionblock span {
+    margin: 0 8px;
+}

@@ -24,6 +24,13 @@ let wallHeight = 80;
  */
 let player;
 /**
+ * Dictionary containing scoring elements:
+ * - kills (count and total)
+ * - treasures (count and total)
+ * - secrets (count and total)
+ */
+let score;
+/**
  * Things in the level (sprites, enemies, powerups, etc.)
  * @type {Array}
  */
@@ -106,14 +113,6 @@ let doorTimers;
  * - dx, dy: indicate the direction in which the wall is moving (unit vector)
  */
 let wallTimers;
-/**
- * Array of enemies currently in an animation (animation ends when index reaches animationIndex)
- */
-let animatedEnemies;
-/**
- * Currently tracked touch event (if any)
- */
-let currentTouch;
 /**
  * DataView containing the data from VSWAP.WL6
  * @type {DataView}
@@ -333,6 +332,8 @@ function Player(x, y, dx, dy) {
             if (!timer && map0(x + dx, y + dy) >= 106) {
                 // there is no active timer for this wall, and it can move backwards
                 wallTimers.push({x: x, y: y, t: 0, dx: dx, dy: dy, steps: 2});
+                score.secrets += 1;
+                updateScore();
             }
         }
     };
@@ -484,6 +485,8 @@ function Enemy(x, y, spriteIndex, deathSprites, orientable=false, direction=0) {
      */
     this.alive = true;
 
+    score.totalKills += 1;
+
     /**
      * Kill the enemy and start its dying animation
      */
@@ -491,6 +494,8 @@ function Enemy(x, y, spriteIndex, deathSprites, orientable=false, direction=0) {
         this.alive = false;
         this.orientable = false;
         this.startAnimation(new Animation(this.deathSprites));
+        score.kills += 1;
+        updateScore();
     };
 }
 
@@ -823,7 +828,14 @@ function setup() {
     things = [];
     doorTimers = [];
     wallTimers = [];
-    animatedEnemies = [];
+    score = {
+        kills: 0,
+        totalKills: 0,
+        treasures: 0,
+        totalTreasures: 0,
+        secrets: 0,
+        totalSecrets: 0,
+    };
     spriteTextures = [];
     for (let y = 0; y < 64; y++) {
         for (let x = 0; x < 64; x++) {
@@ -854,6 +866,9 @@ function setup() {
                     // blocking prop
                     plane2[x][y] = true;
                 }
+            } else if (m1 === 98) {
+                // pushwall
+                score.totalSecrets += 1;
             } else if (m1 === 124) {
                 // dead guard
                 things.push(new Thing(x, y, 95));
@@ -909,6 +924,8 @@ function setup() {
         isDrawing = true;
         window.requestAnimationFrame(draw);
     }
+
+    updateScore();
 }
 
 
@@ -1409,6 +1426,7 @@ function setupPage() {
     imageData = new ImageData(pixelWidth * zoom, pixelHeight * zoom);
     pixels = new DataView(imageData.data.buffer);
 
+    document.getElementById("resolution_option").addEventListener("click", toggleResolution);
     document.onkeydown = function(e) {
         if (e.key === "Control") { player.shoot(); }
         pressedKeys[e.key] = true;
@@ -1422,26 +1440,36 @@ function setupPage() {
 }
 
 
+function updateScore() {
+    let kills = document.getElementById("kills");
+    kills.innerText = "Kills: " + score.kills + " / " + score.totalKills;
+    let secrets = document.getElementById("secrets");
+    secrets.innerText = "Secrets: " + score.secrets + " / " + score.totalSecrets;
+    let treasures = document.getElementById("treasures");
+    treasures.innerText = "Treasures: " + score.treasures + " / " + score.totalTreasures;
+}
+
+
 /**
  * Toggles between 320 x 200 (zoom x2) and 640 x 400 (zoom x1) resolutions
  */
 function toggleResolution() {
-    let button = document.getElementById("resolutionButton");
-    button.disabled = true;
+    let option = document.getElementById("resolution_option");
     if (zoom === 1) {
         pixelHeight = 200;
         pixelWidth = 320;
         zoom = 2;
         wallHeight = 80;
-        button.innerHTML = "320 x 200";
+        option.getElementsByTagName("span")[0].innerText = "High Resolution (320 x 200)";
+        option.getElementsByTagName("img")[0].src = "images/option-button-off.png";
     } else {
         pixelHeight = 400;
         pixelWidth = 640;
         zoom = 1;
         wallHeight = 160;
-        button.innerHTML = "640 x 400";
+        option.getElementsByTagName("span")[0].innerText = "High Resolution (640 x 400)";
+        option.getElementsByTagName("img")[0].src = "images/option-button-on.png";
     }
-    button.disabled = false;
 }
 
 
