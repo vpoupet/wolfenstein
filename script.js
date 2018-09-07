@@ -2,22 +2,37 @@
  * Game pixels rendered on screen (width)
  * @type {number}
  */
-let pixelWidth = 320;
+let pixelWidth;
 /**
  * Game pixels rendered on screen (height)
  * @type {number}
  */
-let pixelHeight = 200;
+let pixelHeight;
 /**
  * Multiplicative rendering factor (1 game pixel is rendered as zoom x zoom pixels in the canvas)
  * @type {number}
  */
-let zoom = 2;
+let zoom;
+/**
+ * Field of vision
+ * @type {number}
+ */
+let fov = 1;
+/**
+ * Whether the draw function should be called every frame (60 fps) or every other frame (30 fps)
+ * @type {boolean}
+ */
+let fps60 = true;
+/**
+ * Whether the draw function should be called on next frame (used when running at 30 fps)
+ * @type {boolean}
+ */
+let drawNextFrame = true;
 /**
  * Rendered size of a wall
  * @type {number}
  */
-let wallHeight = 80;
+let wallHeight;
 /**
  * Representation of the player character
  * @type {Player}
@@ -55,7 +70,7 @@ let surfaceTexturesOn = false;
  * Array containing distance of wall for each pixel column on screen
  * @type {number[]}
  */
-let zIndex = new Array(pixelWidth);
+let zIndex = [];
 /**
  * Dictionary of currently pressed keys (if the key exists and the value is true, then the key is currently pressed)
  * @type {{String: boolean}}
@@ -75,6 +90,11 @@ let plane2;
  * @type {number}
  */
 let setupCounter = 0;
+/**
+ * HTML Canvas in which the game view is drawn
+ * @type {HTMLCanvasElement}
+ */
+let canvas;
 /**
  * Drawing context
  * @type {CanvasRenderingContext2D}
@@ -223,11 +243,6 @@ function Player(x, y, dx, dy) {
      */
     this.radius = 0.25;
     /**
-     * Field of vision
-     * @type {number}
-     */
-    this.fov = 1;
-    /**
      * Sprite index to display as player's weapon
      * @type {number}
      */
@@ -342,7 +357,7 @@ function Player(x, y, dx, dy) {
      * Shoot straight in front of the player (kills the first enemy in the line)
      */
     this.shoot = function() {
-        if (!this.weaponAnimation) {
+        if (this.weaponAnimation === undefined) {
             this.weaponAnimation = new Animation([422, 423, 424, 425]);
             let d = zIndex[pixelWidth / 2];
             for (let i = things.length - 1; i >= 0; i--) {
@@ -362,7 +377,7 @@ function Player(x, y, dx, dy) {
     };
 
     this.update = function() {
-        if (this.weaponAnimation) {
+        if (this.weaponAnimation !== undefined) {
             let a = this.weaponAnimation;
             a.timer += 1;
             if (a.timer >= 6) {
@@ -433,7 +448,7 @@ function Thing(x, y, spriteIndex, orientable=false) {
         this.ry = -this.rx * player.dy + this.ry * player.dx;
         this.rx = rx;
 
-        if (this.animation) {
+        if (this.animation !== undefined) {
             let a = this.animation;
             a.timer += 1;
             if (a.timer >= 8) {
@@ -922,7 +937,7 @@ function setup() {
     // if the draw loop hasn't started yet, start it
     if (!isDrawing) {
         isDrawing = true;
-        window.requestAnimationFrame(draw);
+        window.requestAnimationFrame(update);
     }
 
     updateScore();
@@ -966,7 +981,7 @@ function getWallTexel(x, y, index) {
  * @returns {number} palette index of the corresponding pixel
  */
 function getSpriteTexel(x, y, index) {
-    if (!spriteTextures[index]) {
+    if (spriteTextures[index] === undefined) {
         makeSprite(index);
     }
     return spriteTextures[index][~~(64 * y) + 64 * ~~(64 * x)];
@@ -1005,10 +1020,7 @@ function makeSprite(index) {
 }
 
 
-/**
- * Main drawing loop called at each frame
- */
-function draw() {
+function update() {
     // update player position and direction
     if (pressedKeys["ArrowRight"]) { player.turn(player.speed_a) }
     if (pressedKeys["ArrowLeft"]) { player.turn(-player.speed_a) }
@@ -1066,14 +1078,31 @@ function draw() {
     // update player
     player.update();
 
+    if (fps60) {
+        // run at 60fps
+        draw();
+    } else if (drawNextFrame = !drawNextFrame) {
+        // run at 30 fps
+        draw();
+    }
+
+    requestAnimationFrame(update);
+}
+
+
+/**
+ * Main drawing loop called at each frame
+ */
+function draw() {
     // draw visible game elements
     drawWalls();
     drawThings();
     drawWeapon();
 
     context.putImageData(imageData, 0, 0);
-    // call the draw function on next frame
-    window.requestAnimationFrame(draw);
+    if (zoom > 1) {
+        context.drawImage(canvas, 0, 0);
+    }
 }
 
 
@@ -1087,7 +1116,7 @@ function drawWalls() {
         // cast a ray for each screen column
 
         // current column position on the camera plane
-        let shift = player.fov * (2 * i - pixelWidth) / pixelWidth;
+        let shift = fov * ((i << 1) - pixelWidth) / pixelWidth;
         // direction of the ray
         let rdx = player.dx - shift * player.dy;
         let rdy = player.dy + shift * player.dx;
@@ -1134,7 +1163,7 @@ function drawWalls() {
                 if (map1(cx, cy) === 98) {
                     // pushwall
                     let timer = wallTimers.find(function(obj) { return obj.x === cx && obj.y === cy; });
-                    if (timer) {
+                    if (timer !== undefined) {
                         wallShift = timer.t / 64;
                         if (timer.dx !== 0) {
                             // wall moves horizontally
@@ -1191,7 +1220,7 @@ function drawWalls() {
                 // check if door has an associated timer
                 let doorShift = 0;
                 let timer = doorTimers.find(function(obj) { return obj.x === cx && obj.y === cy; });
-                if (timer) {
+                if (timer !== undefined) {
                     if (timer.opening) {
                         doorShift = timer.t / 64;
                     } else {
@@ -1319,27 +1348,24 @@ function drawWalls() {
         // compute ray location
         rx = stepx > 0 ? cx + 1 - rfx : cx + rfx;
         ry = stepy > 0 ? cy + 1 - rfy : cy + rfy;
-        let h = wallHeight / t; // height of the line representing the wall on the current column
+        let h = wallHeight / (2 * t); // height of the line representing the wall on the current column
         zIndex[i] = t;
 
         // draw pixels in current column
         for (let j = 0; j < pixelHeight; j++) {
             if (j <= pixelHeight / 2 - h) {
                 // draw ceiling and floor
-                // if (surfaceTexturesOn) {
-                //     let d = wallHeight / (pixelHeight / 2 - j);
-                //     let fx = sx + (rx - sx) * (d - 1) / (t - 1);
-                //     let fy = sy + (ry - sy) * (d - 1) / (t - 1);
-                //     let bytes = surfaceTextures.bytes;
-                //     let offset = surfaceTextures.getTexelOffset(fx % 1, fy % 1, 1);
-                //     drawPixel(i, j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
-                //     offset = surfaceTextures.getTexelOffset(fx % 1, fy % 1, 0);
-                //     drawPixel(i, pixelHeight - j, bytes[offset], bytes[offset + 1], bytes[offset + 2]);
-                // } else {
+                if (surfaceTexturesOn) {
+                    let d = wallHeight / (pixelHeight - 2 * j);
+                    let fx = sx + (rx - sx) * (d - 1) / (t - 1);
+                    let fy = sy + (ry - sy) * (d - 1) / (t - 1);
+                    drawPixel(i, j, getSurfaceTexel(fx % 1, fy % 1, 1));
+                    drawPixel(i, pixelHeight - j, getSurfaceTexel(fx % 1, fy % 1, 0));
+                } else {
                     // draw ceiling and floor (plain color, as in original game)
                     drawPixel(i, j, 29);
                     drawPixel(i, pixelHeight - 1 - j, 25);
-                // }
+                }
             } else if (j > pixelHeight / 2 + h) {
                 break;
             } else {
@@ -1358,21 +1384,40 @@ function drawThings() {
         let t = things[k];
         if (t.rx <= 0) {
             return;
+        } else if (Math.abs(t.ry) > t.rx + 1) {
+            // thing is out of field of view
+            continue;
         }
 
-        let th = 2 * wallHeight / t.rx;
-        let tw = pixelWidth / ( 2 * player.fov * t.rx);
-        let tx = ~~((t.ry / t.rx + player.fov) * pixelWidth / (2 * player.fov) - tw / 2);
+        let th = wallHeight / t.rx;
+        let tx = ~~((t.ry / t.rx + fov) * wallHeight - th / 2);
         let ty = ~~((pixelHeight - th) / 2);
-        let angle = 0;
+        let index = t.spriteIndex;
         if (t.orientable) {
-            angle = (~~(-4 * Math.atan2(t.y - player.y, t.x - player.x) / Math.PI + 12.5) - 2 * t.direction) % 8;
+            index += (~~(-4 * Math.atan2(t.y - player.y, t.x - player.x) / Math.PI + 12.5) - 2 * t.direction) % 8;
         }
 
-        for (let x = Math.max(tx, 0); x < Math.min(tx + tw, pixelWidth); x++) {
-            if (t.rx < zIndex[x]) {
-                for (let y = Math.max(ty, 0); y < Math.min(ty + th, pixelHeight); y++) {
-                    drawPixel(x, y, getSpriteTexel((x - tx) / tw, (y - ty) / th, t.spriteIndex + angle));
+        if (th <= 128) {
+            // thing is small, compute color for each rendered pixel
+            for (let x = Math.max(tx, 0); x < Math.min(tx + th, pixelWidth); x++) {
+                if (t.rx < zIndex[x]) {
+                    for (let y = Math.max(ty, 0); y < Math.min(ty + th, pixelHeight); y++) {
+                        drawPixel(x, y, getSpriteTexel((x - tx) / th, (y - ty) / th, index));
+                    }
+                }
+            }
+        } else {
+            if (spriteTextures[index] === undefined) {
+                makeSprite(index);
+            }
+            // thing is large, render each texture pixel as a large square
+            let scale = Math.ceil(th / 64);
+            for (let x = 0; x < 64; x++) {
+                for (let y = 0; y < 64; y++) {
+                    let col = spriteTextures[index][y + 64 * x];
+                    if (col !== undefined) {
+                        drawScaledPixel(tx + ~~(x * th / 64), ty + ~~(y * th / 64), col, scale, t.rx);
+                    }
                 }
             }
         }
@@ -1381,12 +1426,16 @@ function drawThings() {
 
 
 function drawWeapon() {
-    if (!spriteTextures[player.weaponSprite]) {
+    if (spriteTextures[player.weaponSprite] === undefined) {
         makeSprite(player.weaponSprite);
     }
+    let scale = zoom === 1 ? 4 : 2;
     for (let x = 0; x < 64; x++) {
         for (let y = 0; y < 64; y++) {
-            drawPixel(x + 48, y + 36, spriteTextures[player.weaponSprite][64 * x + y], 4 / zoom);
+            let col = spriteTextures[player.weaponSprite][64 * x + y];
+            if (col !== undefined) {
+                drawScaledPixel(scale * (x - 32) + pixelWidth / 2, scale * (y - 64) + pixelHeight, col, scale);
+            }
         }
     }
 }
@@ -1398,15 +1447,24 @@ function drawWeapon() {
  * @param y {number} y-coordinate of the screen pixel to change
  * @param col {number} palette index of color
  */
-function drawPixel(x, y, col, scale=1) {
-    scale *= zoom;
-    if (col === undefined) {
-        return;
+function drawPixel(x, y, col) {
+    if (col !== undefined) {
+        pixels.setUint32((pixelWidth * y + x) << 2, palette[col], true);
     }
-    for (let i = 0; i < scale; i++) {
-        for (let j = 0; j < scale; j++) {
-            let pixelOffset = 4 * (zoom * pixelWidth * (scale * y + j) + scale * x + i);
-            pixels.setUint32(pixelOffset, palette[col], true);
+}
+
+
+function drawScaledPixel(x, y, col, scale, dist=undefined) {
+    if (col !== undefined) {
+        let color = palette[col];
+        for (let col = x >= 0 ? x : 0; col < x + scale && col < pixelWidth; col++) {
+            if (dist !== undefined && dist >= zIndex[col]) {
+                // sprite is hidden on this column
+                continue;
+            }
+            for (let row = y >= 0 ? y : 0; row < y + scale && row < pixelHeight; row++) {
+                pixels.setUint32((pixelWidth * row + col) << 2, color, true);
+            }
         }
     }
 }
@@ -1419,14 +1477,14 @@ function drawPixel(x, y, col, scale=1) {
  */
 function setupPage() {
     // canvas
-    let canvas = document.getElementById("game_view");
-    canvas.width = pixelWidth * zoom;
-    canvas.height = pixelHeight * zoom;
+    canvas = document.getElementById("game_view");
+    canvas.width = 640;
+    canvas.height = 400;
     context = canvas.getContext("2d");
-    imageData = new ImageData(pixelWidth * zoom, pixelHeight * zoom);
-    pixels = new DataView(imageData.data.buffer);
+    setZoom(2);
 
     document.getElementById("resolution_option").addEventListener("click", toggleResolution);
+    document.getElementById("fps_option").addEventListener("click", toggleFPS);
     document.onkeydown = function(e) {
         if (e.key === "Control") { player.shoot(); }
         pressedKeys[e.key] = true;
@@ -1456,20 +1514,45 @@ function updateScore() {
 function toggleResolution() {
     let option = document.getElementById("resolution_option");
     if (zoom === 1) {
-        pixelHeight = 200;
-        pixelWidth = 320;
-        zoom = 2;
-        wallHeight = 80;
+        setZoom(2);
         option.getElementsByTagName("span")[0].innerText = "High Resolution (320 x 200)";
         option.getElementsByTagName("img")[0].src = "images/option-button-off.png";
     } else {
-        pixelHeight = 400;
-        pixelWidth = 640;
-        zoom = 1;
-        wallHeight = 160;
+        setZoom(1);
         option.getElementsByTagName("span")[0].innerText = "High Resolution (640 x 400)";
         option.getElementsByTagName("img")[0].src = "images/option-button-on.png";
     }
+}
+
+
+/**
+ * Toggles between 60 fps and 30 fps
+ */
+function toggleFPS() {
+    let option = document.getElementById("fps_option");
+    fps60 = !fps60;
+    let framerate = fps60 ? "(60 fps)" : "(30 fps)";
+    let button = fps60 ? "-on.png" : "-off.png";
+    option.getElementsByTagName("span")[0].innerText = "Framerate " + framerate;
+    option.getElementsByTagName("img")[0].src = "images/option-button" + button;
+}
+
+
+/**
+ * Change the zoom value
+ * @param n {number} new zoom value
+ */
+function setZoom(n) {
+    if (zoom !== undefined) {
+        context.scale(1/zoom, 1/zoom);
+    }
+    zoom = n;
+    pixelWidth = 640 / zoom;
+    pixelHeight = 400 / zoom;
+    wallHeight = pixelWidth / (2 * fov);
+    imageData = new ImageData(pixelWidth, pixelHeight);
+    pixels = new DataView(imageData.data.buffer);
+    context.scale(zoom, zoom);
 }
 
 
