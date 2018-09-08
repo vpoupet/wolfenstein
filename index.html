@@ -3,99 +3,54 @@
     <head>
         <link rel="stylesheet" type="text/css" href="style.css">
         <meta charset="utf-8">
-        <style> body {padding: 0; margin: 0;} </style>
     </head>
     <body>
         <div id="main">
-            <img id="title" src="images/wolfenstein3d.png">
-            <canvas id="game_view"></canvas>
-            <div id="score">
-                <span id="kills">Kills: 0 / 0</span><span id="treasures">Treasures: 0 / 0</span><span id="secrets">Secrets: 0 / 0</span>
+            <div id="game_screen">
+                <img id="splash_screen" src="images/splash.png">
+                <div id="episode_select" style="display:none">
+                    <img src="images/ep_select.png">
+                    <div id="episodes_list">
+                        <img class="episode" src="images/ep_1.png" onclick="startGame(0)">
+                        <img class="episode" src="images/ep_2.png" onclick="startGame(10)">
+                        <img class="episode" src="images/ep_3.png" onclick="startGame(20)">
+                        <img class="episode" src="images/ep_4.png" onclick="startGame(30)">
+                        <img class="episode" src="images/ep_5.png" onclick="startGame(40)">
+                        <img class="episode" src="images/ep_6.png" onclick="startGame(50)">
+                    </div>
+                </div>
+            </div>
+            <div id="player_info">
+                <div id="score">
+                    <span id="kills"></span>
+                    <span id="treasures"></span>
+                    <span id="secrets"></span>
+                </div>
+                <span id="keys">
+                    <img id="gold_key" src="images/gold_key.png">
+                    <img id="silver_key" src="images/silver_key.png">
+                </span>
             </div>
         </div>
         <div id="options">
-            <span class="optionblock">
-                Level select: <select id="level_select" onchange="loadLevel()">
-                    <option value="0">Episode 1 - Floor 1</option>
-                    <option value="1">Episode 1 - Floor 2</option>
-                    <option value="2">Episode 1 - Floor 3</option>
-                    <option value="3">Episode 1 - Floor 4</option>
-                    <option value="4">Episode 1 - Floor 5</option>
-                    <option value="5">Episode 1 - Floor 6</option>
-                    <option value="6">Episode 1 - Floor 7</option>
-                    <option value="7">Episode 1 - Floor 8</option>
-                    <option value="8">Episode 1 - Floor 9 (Boss)</option>
-                    <option value="9">Episode 1 - Floor 10 (Secret)</option>
-                    <option value="10">Episode 2 - Floor 1</option>
-                    <option value="11">Episode 2 - Floor 2</option>
-                    <option value="12">Episode 2 - Floor 3</option>
-                    <option value="13">Episode 2 - Floor 4</option>
-                    <option value="14">Episode 2 - Floor 5</option>
-                    <option value="15">Episode 2 - Floor 6</option>
-                    <option value="16">Episode 2 - Floor 7</option>
-                    <option value="17">Episode 2 - Floor 8</option>
-                    <option value="18">Episode 2 - Floor 9 (Boss)</option>
-                    <option value="19">Episode 2 - Floor 10 (Secret)</option>
-                    <option value="20">Episode 3 - Floor 1</option>
-                    <option value="21">Episode 3 - Floor 2</option>
-                    <option value="22">Episode 3 - Floor 3</option>
-                    <option value="23">Episode 3 - Floor 4</option>
-                    <option value="24">Episode 3 - Floor 5</option>
-                    <option value="25">Episode 3 - Floor 6</option>
-                    <option value="26">Episode 3 - Floor 7</option>
-                    <option value="27">Episode 3 - Floor 8</option>
-                    <option value="28">Episode 3 - Floor 9 (Boss)</option>
-                    <option value="29">Episode 3 - Floor 10 (Secret)</option>
-                    <option value="30">Episode 4 - Floor 1</option>
-                    <option value="31">Episode 4 - Floor 2</option>
-                    <option value="32">Episode 4 - Floor 3</option>
-                    <option value="33">Episode 4 - Floor 4</option>
-                    <option value="34">Episode 4 - Floor 5</option>
-                    <option value="35">Episode 4 - Floor 6</option>
-                    <option value="36">Episode 4 - Floor 7</option>
-                    <option value="37">Episode 4 - Floor 8</option>
-                    <option value="38">Episode 4 - Floor 9 (Boss)</option>
-                    <option value="39">Episode 4 - Floor 10 (Secret)</option>
-                    <option value="40">Episode 5 - Floor 1</option>
-                    <option value="41">Episode 5 - Floor 2</option>
-                    <option value="42">Episode 5 - Floor 3</option>
-                    <option value="43">Episode 5 - Floor 4</option>
-                    <option value="44">Episode 5 - Floor 5</option>
-                    <option value="45">Episode 5 - Floor 6</option>
-                    <option value="46">Episode 5 - Floor 7</option>
-                    <option value="47">Episode 5 - Floor 8</option>
-                    <option value="48">Episode 5 - Floor 9 (Boss)</option>
-                    <option value="49">Episode 5 - Floor 10 (Secret)</option>
-                    <option value="50">Episode 6 - Floor 1</option>
-                    <option value="51">Episode 6 - Floor 2</option>
-                    <option value="52">Episode 6 - Floor 3</option>
-                    <option value="53">Episode 6 - Floor 4</option>
-                    <option value="54">Episode 6 - Floor 5</option>
-                    <option value="55">Episode 6 - Floor 6</option>
-                    <option value="56">Episode 6 - Floor 7</option>
-                    <option value="57">Episode 6 - Floor 8</option>
-                    <option value="58">Episode 6 - Floor 9 (Boss)</option>
-                    <option value="59">Episode 6 - Floor 10 (Secret)</option>
-                </select><br>
+            <img src="images/options.png">
+            <span class="option" id="option_resolution">
+                <img src="images/button_off.png"><span>Resolution (320 x 200)</span></button><br>
             </span>
-            <span class="optionblock" id="resolution_option">
-                <img src="images/option-button-off.png"><span>High Resolution (320 x 200)</span></button><br>
+            <span class="option" id="option_framerate">
+                <img src="images/button_on.png"><span>Framerate (60 fps)</span></button><br>
             </span>
-            <span class="optionblock" id="fps_option">
-                <img src="images/option-button-on.png"><span>Framerate (60 fps)</span></button><br>
+            <span class="option">
+                Instructions :<br>
+                &ensp;- Move with arrow keys<br>
+                &ensp;- Open/close doors and secrets with Space<br>
+                &ensp;- Shoot with Control<br>
+                &ensp;- Shoot with Control<br>
             </span>
-            <!--<span class="optionblock" id="surfaces_option">
-                <img src="images/option-button-off.png"><span>Floor and ceiling textures</span><br>
-            </span>-->
-            <span class="optionblock">
-                <h3>Instructions :</h3>
-                <ul>
-                    <li>Move with arrow keys</li>
-                    <li>Open/close doors and secrets with Space</li>
-                    <li>Shoot with Control</li>
-                </ul>
-            </span>
-            <script src="script.js"></script>
+            <script src="js/files.js"></script>
+            <script src="js/engine.js"></script>
+            <script src="js/game.js"></script>
+            <script src="js/interface.js"></script>
         </div>
     </body>
 </html>
