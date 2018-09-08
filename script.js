@@ -147,7 +147,7 @@ let MAPHEAD, GAMEMAPS;
  * Game color palette (RGBA, 32bit little-endian)
  * @type {Uint32Array}
  */
-let palette = new Uint32Array([
+let gamePalette = new Uint32Array([
     4278190080, 4289200128, 4278233088, 4289243136, 4278190248, 4289200296, 4278211752, 4289243304,
     4283716692, 4294726740, 4283759700, 4294769748, 4283716860, 4294726908, 4283759868, 4294769916,
     4293717228, 4292664540, 4291875024, 4290822336, 4290032820, 4289243304, 4288190616, 4287401100,
@@ -180,7 +180,15 @@ let palette = new Uint32Array([
     4281597952, 4280032284, 4283190348, 4284243036, 4282400832, 4281348144, 4281611316, 4294243544,
     4293454008, 4292664476, 4291348596, 4290822216, 4290032672, 4289769504, 4288979968, 4288190464,
     4287400960, 4286874624, 4286348288, 4286085120, 4285821952, 4285558784, 4285295616, 4287103128]);
-
+/**
+ * Current palette (can be changed temporarily by some effects)
+ * @type {Uint32Array}
+ */
+let palette = gamePalette.slice();
+/**
+ * Current flashing effect (if any)
+ */
+let flash;
 
 // *** Classes ***
 
@@ -199,34 +207,60 @@ function Animation(sprites, loop=false) {
 
 
 /**
- * Class representation of the game player character
- * @param x {number} initial x-coordinate on map
- * @param y {number} initial y-coordinate on map
- * @param dx {number} facing direction (x-value)
- * @param dy {number} facing direction (y-value) (dx, dy) should be a unit vector
+ * Class representation of a flashing effect
+ * @param red {number} red intensity in [0, 1)
+ * @param green {number} green intensity in [0, 1)
+ * @param blue {number} blue intensity in [0, 1)
  * @constructor
  */
-function Player(x, y, dx, dy) {
+function Flash(red, green, blue) {
+    /**
+     * Frames counter since flash effect started
+     * @type {number}
+     */
+    this.timer = 0;
+    /**
+     * Red intensity of the flash
+     * @type {number}
+     */
+    this.red = red;
+    /**
+     * Green intensity of the flash
+     * @type {number}
+     */
+    this.green = green;
+    /**
+     * Blue intensity of the flash
+     * @type {number}
+     */
+    this.blue = blue;
+}
+
+/**
+ * Class representation of the game player character
+ * @constructor
+ */
+function Player() {
     /**
      * Position of the player on the map (x-coordinate)
      * @type {number}
      */
-    this.x = x + .5;
+    this.x = 0;
     /**
      * Position of the player on the map (y-coordinate)
      * @type {number}
      */
-    this.y = y + .5;
+    this.y = 0;
     /**
      * Player facing direction (x-value)
      * @type {number}
      */
-    this.dx = dx;
+    this.dx = 0;
     /**
      * Player facing direction (y-value)
      * @type {number}
      */
-    this.dy = dy;
+    this.dy = 0;
     /**
      * Walking speed
      * @type {number}
@@ -247,6 +281,16 @@ function Player(x, y, dx, dy) {
      * @type {number}
      */
     this.weaponSprite = 421;
+    /**
+     * Whether the player has collected the silver key
+     * @type {boolean}
+     */
+    this.silverKey = false;
+    /**
+     * Whether the player has collected the gold key
+     * @type {boolean}
+     */
+    this.goldKey = false;
     /**
      * Check whether the player can go to the given location
      * @param x {number} x-coordinate of the position
@@ -281,6 +325,8 @@ function Player(x, y, dx, dy) {
      * @param length {number} distance to move (use negative value to move backwards)
      */
     this.move = function(length) {
+        let oldx = ~~this.x;
+        let oldy = ~~this.y;
         let x = this.x + this.dx * length;
         let y = this.y + this.dy * length;
         if (this.canMoveTo(x, this.y)) {
@@ -288,6 +334,11 @@ function Player(x, y, dx, dy) {
         }
         if (this.canMoveTo(this.x, y)) {
             this.y = y;
+        }
+        let newx = ~~this.x;
+        let newy = ~~this.y;
+        if (newx !== oldx || newy !== oldy) {
+            player.collect(newx, newy);
         }
     };
 
@@ -354,6 +405,37 @@ function Player(x, y, dx, dy) {
     };
 
     /**
+     * Make the player collect collectibles on a given cell
+     * @param x {number} integer x-coordinate of the cell
+     * @param y {number} integer y-coordinate of the cell
+     */
+    this.collect = function(x, y) {
+        for (let i = 0; i < things.length; i++) {
+            let t = things[i];
+            if (t.collectible && t.x === x + .5 && t.y === y + .5) {
+                if (31 <= t.spriteIndex && t.spriteIndex <= 35) {
+                    // treasure or 1up
+                    score.treasures += 1;
+                    flash = new Flash(.5, .5, 0);  // yellow flash for treasures
+                    updateScore();
+                } else {
+                    // other collectible (ammo, weapon, food or key)
+                    flash = new Flash(.5, .5, .5);  // white flash for other collectibles
+                    if (t.spriteIndex === 22) {
+                        // gold key
+                        player.goldKey = true;
+                    } else if (t.spriteIndex === 23) {
+                        // silver key
+                        player.silverKey = true;
+                    }
+                }
+                things.splice(i, 1);
+                i -= 1;
+            }
+        }
+    };
+
+    /**
      * Shoot straight in front of the player (kills the first enemy in the line)
      */
     this.shoot = function() {
@@ -369,6 +451,7 @@ function Player(x, y, dx, dy) {
                     break;
                 }
                 if (Math.abs(t.ry) <= .3 && t.alive) {
+                    flash = new Flash(.5, 0, 0);
                     t.die();
                     return;
                 }
@@ -400,10 +483,11 @@ function Player(x, y, dx, dy) {
  * @param x {number} starting x-coordinate on map
  * @param y {number} starting y-coordinate on map
  * @param spriteIndex {number} index of texture to represent the thing
+ * @param collectible {boolean} whether the thing can be collected by the player
  * @param orientable {boolean} whether the thing has different sprites depending on orientation
  * @constructor
  */
-function Thing(x, y, spriteIndex, orientable=false) {
+function Thing(x, y, spriteIndex, collectible=false, orientable=false) {
     /**
      * Current x-coordinate on map
      * @type {number}
@@ -420,14 +504,25 @@ function Thing(x, y, spriteIndex, orientable=false) {
      */
     this.spriteIndex = spriteIndex;
     /**
+     * Whether the thing can be collected by the player (ammunition, weapon, food, treasure, 1up)
+     * @type {boolean}
+     */
+    this.collectible = collectible;
+    /**
      * Whether the thing has different sprites depending on orientation
      * @type {boolean}
      */
     this.orientable = orientable;
+
+    /**
+     * Start executing a sprite animation (change current sprite at regular intervals)
+     * @param animation
+     */
     this.startAnimation = function(animation) {
         this.animation = animation;
         this.spriteIndex = animation.sprites[0];
     };
+
     /**
      * Update necessary attributes each frame:
      * - relative coordinates from player's perspective
@@ -483,7 +578,7 @@ function Thing(x, y, spriteIndex, orientable=false) {
  * @constructor
  */
 function Enemy(x, y, spriteIndex, deathSprites, orientable=false, direction=0) {
-    Thing.call(this, x, y, spriteIndex, orientable);
+    Thing.call(this, x, y, spriteIndex, false, orientable);
     /**
      * List of sprite indexes of the enemy's dying animation
      * @type {number[]}
@@ -843,6 +938,12 @@ function setup() {
     things = [];
     doorTimers = [];
     wallTimers = [];
+    if (player === undefined) {
+        player = new Player();
+    }
+    player.silverKey = false;
+    player.goldKey = false;
+
     score = {
         kills: 0,
         totalKills: 0,
@@ -865,17 +966,34 @@ function setup() {
             }
             // entities
             let m1 = map1(x, y);
-            if (m1 === 19) {
-                player = new Player(x, y, 0, -1);
-            } else if (m1 === 20) {
-                player = new Player(x, y, 1, 0);
-            } else if (m1 === 21) {
-                player = new Player(x, y, 0, 1);
-            } else if (m1 === 22) {
-                player = new Player(x, y, -1, 0);
-            } else if (m1 >= 23 && m1 <= 74) {
+            if (19 <= m1 && m1 <= 22) {
+                // player starting position
+                player.x = x + .5;
+                player.y = y + .5;
+                if (m1 === 19) {
+                    player.dx = 0;
+                    player.dy = -1;
+                } else if (m1 === 20) {
+                    player.dx = 1;
+                    player.dy = 0;
+                } else if (m1 === 21) {
+                    player.dx = 0;
+                    player.dy = 1;
+                } else if (m1 === 22) {
+                    player.dx = -1;
+                    player.dy = 0;
+                }
+            } else if (23 <= m1 && m1 <= 74) {
                 // props
-                things.push(new Thing(x, y, m1 - 21));
+                let collectible = false;
+                if ([29, 43, 44, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56].indexOf(m1) >= 0) {
+                    // collectible
+                    collectible = true;
+                    if (52 <= m1 && m1 <= 56) {
+                        score.totalTreasures += 1;
+                    }
+                }
+                things.push(new Thing(x, y, m1 - 21, collectible));
                 if ([24, 25, 26, 28, 30, 31, 33, 34, 35, 36, 38, 39, 40, 41, 45, 58, 59, 60, 62, 63, 67, 68, 69,
                     71, 73].indexOf(m1) >= 0) {
                     // blocking prop
@@ -1078,6 +1196,21 @@ function update() {
     // update player
     player.update();
 
+    // update flashing palette
+    if (flash !== undefined) {
+        flash.timer += 1;
+        if (flash.timer <= 2) {
+            flashPalette(flash.red / 2, flash.green / 2, flash.blue / 2);
+        } else if (flash.timer <= 4) {
+            flashPalette(flash.red, flash.green, flash.blue);
+        } else if (flash.timer <= 6) {
+            flashPalette(flash.red / 2, flash.green / 2, flash.blue / 2);
+        } else {
+            flashPalette(0, 0, 0);
+            flash = undefined
+        }
+    }
+
     if (fps60) {
         // run at 60fps
         draw();
@@ -1102,6 +1235,20 @@ function draw() {
     context.putImageData(imageData, 0, 0);
     if (zoom > 1) {
         context.drawImage(canvas, 0, 0);
+    }
+}
+
+
+function flashPalette(redFlash, greenFlash, blueFlash) {
+    for (let i = 0; i < gamePalette.length; i++) {
+        let v = gamePalette[i];
+        let r = v % 256;
+        let g = (v >>> 8) % 256;
+        let b = (v >>> 16) % 256;
+        r += ~~(redFlash * (255 - r));
+        g += ~~(greenFlash * (255 - g));
+        b += ~~(blueFlash * (255 - b));
+        palette[i] = (255 << 24) + (b << 16) + (g << 8) + r;
     }
 }
 
