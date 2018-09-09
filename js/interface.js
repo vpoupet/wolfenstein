@@ -42,7 +42,7 @@ function updateScore() {
 
 
 /**
- * Toggles between 320 x 200 (zoom x2) and 640 x 400 (zoom x1) resolutions
+ * Toggle between 320 x 200 (zoom x2) and 640 x 400 (zoom x1) resolutions
  */
 function toggleResolution() {
     let option = document.getElementById("option_resolution");
@@ -59,7 +59,7 @@ function toggleResolution() {
 
 
 /**
- * Toggles between 60 fps and 30 fps
+ * Toggle between 60 fps and 30 fps
  */
 function toggleFPS() {
     let option = document.getElementById("option_framerate");
@@ -70,6 +70,16 @@ function toggleFPS() {
     option.getElementsByTagName("img")[0].src = "images/button" + button;
 }
 
+
+/**
+ * Toggle pushwalls hightlighting on or off
+ */
+function togglePushwalls() {
+    showPushwalls = !showPushwalls;
+    let option = document.getElementById("option_pushwalls");
+    let button = showPushwalls ? "_on.png" : "_off.png";
+    option.getElementsByTagName("img")[0].src = "images/button" + button;
+}
 
 /**
  * Loads a level and starts running the game
@@ -90,6 +100,7 @@ function startGame(level) {
     // setup page events (graphics options and keyboard inputs)
     document.getElementById("option_resolution").addEventListener("click", toggleResolution);
     document.getElementById("option_framerate").addEventListener("click", toggleFPS);
+    document.getElementById("option_pushwalls").addEventListener("click", togglePushwalls);
     document.onkeydown = function (e) {
         if (e.key === "Control") {
             player.shoot();

@@ -90,7 +90,31 @@ let gamePalette = new Uint32Array([
  */
 let palette = gamePalette.slice();
 /**
+ * An alternate palette (heavily shifted in the reds) to highlight some objects when needed (not part of the
+ * original game)
+ * @type {Uint32Array}
+ */
+let paletteRed = [];
+for (let i = 0; i < gamePalette.length; i++) {
+    let v = gamePalette[i];
+    // extract each component
+    let r = v % 256;
+    let g = (v >>> 8) % 256;
+    let b = (v >>> 16) % 256;
+    r += ~~(.5 * (255 - r));
+    g = ~~(.75 * g);
+    b = ~~(.75 * b);
+    // recreate the Uint32 palette value from components
+    paletteRed[i] = (255 << 24) + (b << 16) + (g << 8) + r;
+}
+/**
+ * Whether secret pushwalls should be displayed differently (cheat)
+ * @type {boolean}
+ */
+showPushwalls = false;
+/**
  * Current flashing effect (if any)
+ * @type {Flash}
  */
 let flash;
 
@@ -213,6 +237,7 @@ function flashPalette(redFlash, greenFlash, blueFlash) {
  */
 function drawWalls() {
     for (let i = 0; i < pixelWidth; i++) {
+        let isPushwall = false;  // remember if wall is a pushwall to be able to draw it differently if needed
         // cast a ray for each screen column
 
         // current column position on the camera plane
@@ -261,6 +286,7 @@ function drawWalls() {
                 // hit a wall
                 let wallShift = 0;
                 if (map1(cx, cy) === 98) {
+                    isPushwall = true;
                     // pushwall
                     let timer = wallTimers.find(function(obj) { return obj.x === cx && obj.y === cy; });
                     if (timer !== undefined) {
@@ -275,6 +301,7 @@ function drawWalls() {
                                 rfx -= wallShift;
                             } else {
                                 // ray moves to next cell
+                                isPushwall = false;
                                 let dt = rfy / rdy;
                                 t += dt;
                                 rfy = 1;
@@ -292,6 +319,7 @@ function drawWalls() {
                                 rfy -= wallShift;
                             } else {
                                 // ray moves to next cell
+                                isPushwall = false;
                                 let dt = rfx / rdx;
                                 t += dt;
                                 rfx = 1;
@@ -469,7 +497,11 @@ function drawWalls() {
             } else if (j > pixelHeight / 2 + h) {
                 break;
             } else {
-                drawPixel(i, j, getWallTexel(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex));
+                if (isPushwall && showPushwalls) {
+                    drawRedPixel(i, j, getWallTexel(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex));
+                } else {
+                    drawPixel(i, j, getWallTexel(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex));
+                }
             }
         }
     }
@@ -553,6 +585,11 @@ function drawWeapon() {
 function drawPixel(x, y, col) {
     if (col !== undefined) {
         pixels.setUint32((pixelWidth * y + x) << 2, palette[col], true);
+    }
+}
+function drawRedPixel(x, y, col) {
+    if (col !== undefined) {
+        pixels.setUint32((pixelWidth * y + x) << 2, paletteRed[col], true);
     }
 }
 
