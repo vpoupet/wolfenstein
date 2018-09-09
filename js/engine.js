@@ -199,7 +199,6 @@ function draw() {
     drawWalls();
     drawThings();
     drawWeapon();
-
     context.putImageData(imageData, 0, 0);
     if (zoom > 1) {
         // redraw a scaled version of the canvas
@@ -479,34 +478,67 @@ function drawWalls() {
         let h = wallHeight / (2 * t); // height of the line representing the wall on the current column
         zIndex[i] = t;
 
+        // !!! Older method !!!
         // draw pixels in current column
-        for (let j = 0; j < pixelHeight; j++) {
-            if (j <= pixelHeight / 2 - h) {
-                // draw ceiling and floor
-                if (surfaceTexturesOn) {
-                    let d = wallHeight / (pixelHeight - 2 * j);
-                    let fx = sx + (rx - sx) * (d - 1) / (t - 1);
-                    let fy = sy + (ry - sy) * (d - 1) / (t - 1);
-                    drawPixel(i, j, getSurfaceTexel(fx % 1, fy % 1, 1));
-                    drawPixel(i, pixelHeight - j, getSurfaceTexel(fx % 1, fy % 1, 0));
-                } else {
-                    // draw ceiling and floor (plain color, as in original game)
-                    drawPixel(i, j, 29);
-                    drawPixel(i, pixelHeight - 1 - j, 25);
-                }
-            } else if (j > pixelHeight / 2 + h) {
-                break;
-            } else {
-                if (isPushwall && showPushwalls) {
-                    drawRedPixel(i, j, getWallTexel(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex));
-                } else {
-                    drawPixel(i, j, getWallTexel(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex));
-                }
+        // let texelOffset = wallTexturesOffset + 4096 * textureIndex + 64 * ~~(64 * tx);
+        // for (let j = 0; j < pixelHeight; j++) {
+        //     if (j <= pixelHeight / 2 - h) {
+        //         // draw ceiling and floor
+        //         if (surfaceTexturesOn) {
+        //             let d = wallHeight / (pixelHeight - 2 * j);
+        //             let fx = sx + (rx - sx) * (d - 1) / (t - 1);
+        //             let fy = sy + (ry - sy) * (d - 1) / (t - 1);
+        //             drawPixel(i, j, getSurfaceTexel(fx % 1, fy % 1, 1));
+        //             drawPixel(i, pixelHeight - j, getSurfaceTexel(fx % 1, fy % 1, 0));
+        //         } else {
+        //             // draw ceiling and floor (plain color, as in original game)
+        //             drawPixel(i, j, 29);
+        //             drawPixel(i, pixelHeight - 1 - j, 25);
+        //         }
+        //     } else if (j > pixelHeight / 2 + h) {
+        //         break;
+        //     } else {
+        //         if (isPushwall && showPushwalls) {
+        //             drawRedPixel(i, j, VSWAP.getUint8(texelOffset + ~~(64 * (j - pixelHeight / 2 - h) / (2 * h))));
+        //         } else {
+        //             drawPixel(i, j, VSWAP.getUint8(texelOffset + ~~(64 * (j - pixelHeight / 2 - h) / (2 * h))));
+        //         }
+        //     }
+        // }
+
+        let y = pixelHeight / 2 - h;
+        let yStep = h / 32;
+        let texelOffset = wallTexturesOffset + 4096 * textureIndex + 64 * ~~(64 * tx);
+        // draw ceiling and floor
+        if (surfaceTexturesOn) {
+            for (let j = 0; j < y; j++) {
+                let d = wallHeight / (pixelHeight - 2 * j);
+                let fx = sx + (rx - sx) * (d - 1) / (t - 1);
+                let fy = sy + (ry - sy) * (d - 1) / (t - 1);
+                drawPixel(i, j, getSurfaceTexel(fx % 1, fy % 1, 1));
+                drawPixel(i, pixelHeight - j, getSurfaceTexel(fx % 1, fy % 1, 0));
             }
+        } else {
+            for (let j = 0; j < y; j++) {
+                drawPixel(i, j, 29);
+                drawPixel(i, pixelHeight - 1 - j, 25);
+            }
+        }
+        // draw the wall
+        for (let j = texelOffset; j < texelOffset + 64; j++) {
+            let col = VSWAP.getUint8(j);
+            for (let k = Math.max(0, ~~y); k < Math.min(pixelHeight, ~~(y + yStep)); k++) {
+                drawPixel(i, k, col);
+            }
+            y += yStep;
         }
     }
 }
 
+// function getWallTexel(x, y, index) {
+//     return VSWAP.getUint8(wallTexturesOffset + 4096 * index + ~~(64 * y) + 64 * ~~(64 * x));
+// }
+// drawRedPixel(i, j, getWallTexel(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex));
 
 /**
  * Draw all things on screen from furthest to nearest

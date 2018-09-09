@@ -24,7 +24,6 @@ let imageData;
  */
 let pixels;
 
-
 /**
  * Update the score information under the game screen
  * (should be called whenever one of the score values changes)
@@ -89,12 +88,21 @@ function startGame(level) {
     // display the canvas
     let gameScreen = document.getElementById("game_screen");
     canvas = document.createElement("canvas");
+    canvas.id = 'game_canvas';
     canvas.width = 640;
     canvas.height = 400;
-    context = canvas.getContext("2d");
+    context = canvas.getContext("2d", {alpha: false});
     setZoom(2);  // by default start in 320 x 200 resolution
     gameScreen.innerHTML = '';
     gameScreen.appendChild(canvas);
+
+    // canvasHUD = document.createElement("canvas");
+    // canvasHUD.id = 'hud_canvas';
+    // canvasHUD.width = 640;
+    // canvasHUD.height = 400;
+    // contextHUD = canvasHUD.getContext("2d");
+    // gameScreen.appendChild(canvasHUD);
+
     loadLevel(level);
 
     // setup page events (graphics options and keyboard inputs)
