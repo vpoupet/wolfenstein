@@ -44,12 +44,13 @@ body {
     bottom: 0;
     z-index: 0;
 }
-/*#hud_canvas {*/
-    /*position: absolute;*/
-    /*top: 0;*/
-    /*bottom: 0;*/
-    /*z-index: 1;*/
-/*}*/
+
+#hud_canvas {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+}
 
 #player_info {
     display: flex;

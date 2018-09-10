@@ -143,6 +143,7 @@ function Player() {
         let newy = ~~this.y;
         if (newx !== oldx || newy !== oldy) {
             player.collect(newx, newy);
+            shouldDrawMap = true;
         }
     };
 
@@ -424,6 +425,7 @@ function Enemy(x, y, spriteIndex, deathSprites, orientable=false, direction=0) {
         this.startAnimation(new Animation(this.deathSprites));
         score.kills += 1;
         updateScore();
+        shouldDrawMap = true;
     };
 }
 
@@ -696,6 +698,7 @@ function setupLevel() {
         window.requestAnimationFrame(update);
     }
 
+    shouldDrawMap = true;
     updateScore();
 }
 
@@ -756,6 +759,7 @@ function update() {
                 doorTimers.splice(i, 1);
                 i -= 1;
             }
+            shouldDrawMap = true;
         }
     }
 

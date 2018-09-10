@@ -199,6 +199,10 @@ function draw() {
     drawWalls();
     drawThings();
     drawWeapon();
+    if (shouldDrawMap) {
+        drawMap();
+        shouldDrawMap = false;
+    }
     context.putImageData(imageData, 0, 0);
     if (zoom > 1) {
         // redraw a scaled version of the canvas
@@ -528,7 +532,11 @@ function drawWalls() {
         }
         // draw the wall
         for (let j = texelOffset; j < texelOffset + 64; j++) {
-            let col = palette[VSWAP.getUint8(j)];
+            if (isPushwall) {
+                let col = paletteRed[VSWAP.getUint8(j)];
+            } else {
+                let col = palette[VSWAP.getUint8(j)];
+            }
             yf += stepf;
             if (yf >= 1) {
                 for (let k = Math.max(0, yi); k < Math.min(pixelHeight, yi + stepi + 1); k++) {

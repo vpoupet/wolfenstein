@@ -80,6 +80,20 @@ function togglePushwalls() {
     option.getElementsByTagName("img")[0].src = "images/button" + button;
 }
 
+
+/**
+ * Toggle the visibility of the map
+ */
+function toggleMap() {
+    let hud = document.getElementById("hud_canvas");
+    if (hud.offsetParent === null) {
+        hud.style['display'] = 'block';
+    } else {
+        hud.style['display'] = 'none';
+    }
+}
+
+
 /**
  * Loads a level and starts running the game
  * @param level {number} level to load (should be an integer from 0 to 59)
@@ -96,12 +110,13 @@ function startGame(level) {
     gameScreen.innerHTML = '';
     gameScreen.appendChild(canvas);
 
-    // canvasHUD = document.createElement("canvas");
-    // canvasHUD.id = 'hud_canvas';
-    // canvasHUD.width = 640;
-    // canvasHUD.height = 400;
-    // contextHUD = canvasHUD.getContext("2d");
-    // gameScreen.appendChild(canvasHUD);
+    canvasHUD = document.createElement("canvas");
+    canvasHUD.id = 'hud_canvas';
+    canvasHUD.style = 'display: none';
+    canvasHUD.width = 256;
+    canvasHUD.height = 256;
+    contextHUD = canvasHUD.getContext("2d");
+    gameScreen.appendChild(canvasHUD);
 
     loadLevel(level);
 
@@ -109,9 +124,14 @@ function startGame(level) {
     document.getElementById("option_resolution").addEventListener("click", toggleResolution);
     document.getElementById("option_framerate").addEventListener("click", toggleFPS);
     document.getElementById("option_pushwalls").addEventListener("click", togglePushwalls);
+    document.getElementById("option_map").addEventListener("click", toggleMap);
     document.onkeydown = function (e) {
         if (e.key === "Control") {
             player.shoot();
+        } else if (e.key === "r") {
+            toggleResolution();
+        } else if (e.key === "m") {
+            toggleMap();
         }
         pressedKeys[e.key] = true;
     };
