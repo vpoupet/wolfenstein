@@ -506,8 +506,10 @@ function drawWalls() {
         //     }
         // }
 
-        let y = pixelHeight / 2 - h;
-        let yStep = h / 32;
+        let yi = ~~(pixelHeight / 2 - h);
+        let yf = (pixelHeight / 2 - h) % 1;
+        let stepi = ~~(h / 32);
+        let stepf = (h / 32) % 1;
         let texelOffset = wallTexturesOffset + 4096 * textureIndex + 64 * ~~(64 * tx);
         // draw ceiling and floor
         if (surfaceTexturesOn) {
@@ -519,18 +521,27 @@ function drawWalls() {
                 drawPixel(i, pixelHeight - j, getSurfaceTexel(fx % 1, fy % 1, 0));
             }
         } else {
-            for (let j = 0; j < y; j++) {
+            for (let j = 0; j <= yi; j++) {
                 drawPixel(i, j, 29);
                 drawPixel(i, pixelHeight - 1 - j, 25);
             }
         }
         // draw the wall
         for (let j = texelOffset; j < texelOffset + 64; j++) {
-            let col = VSWAP.getUint8(j);
-            for (let k = Math.max(0, ~~y); k < Math.min(pixelHeight, ~~(y + yStep)); k++) {
-                drawPixel(i, k, col);
+            let col = palette[VSWAP.getUint8(j)];
+            yf += stepf;
+            if (yf >= 1) {
+                for (let k = Math.max(0, yi); k < Math.min(pixelHeight, yi + stepi + 1); k++) {
+                    pixels.setUint32((pixelWidth * k + i) << 2, col, true);
+                }
+                yi += stepi + 1;
+                yf -= 1;
+            } else {
+                for (let k = Math.max(0, yi); k < Math.min(pixelHeight, yi + stepi); k++) {
+                    pixels.setUint32((pixelWidth * k + i) << 2, col, true);
+                }
+                yi += stepi;
             }
-            y += yStep;
         }
     }
 }

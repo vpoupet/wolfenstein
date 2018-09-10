@@ -9,6 +9,10 @@ class W3DInvalidLevelIndexException(W3DException):
     pass
 
 
+VSWAP = '../data/VSWAP.WL6'
+MAPHEAD = '../data/MAPHEAD.WL6'
+GAMEMAPS = '../data/GAMEMAPS.WL6'
+
 # Wolfenstein 3D color palette (hard-coded in executable)
 palette = [
     b'\x00\x00\x00', b'\x00\x00\xa8', b'\x00\xa8\x00', b'\x00\xa8\xa8',
@@ -150,12 +154,12 @@ class Map:
         if level < 0 or level >= 100:
             raise W3DInvalidLevelIndexException()
 
-        with open("MAPHEAD.WL6", "rb") as fp:
+        with open(MAPHEAD, "rb") as fp:
             fp.seek(2 + 4 * level)
             offset = struct.unpack("<I", fp.read(4))[0]
         if offset == 0:
             raise W3DInvalidLevelIndexException()
-        with open("GAMEMAPS.WL6", "rb") as fp:
+        with open(GAMEMAPS, "rb") as fp:
             fp.seek(offset)
             header = struct.unpack("<3I5H20s", fp.read(42))
             name = header[8]
@@ -209,14 +213,14 @@ class Map:
         return cells
 
 
-def make_wall_tileset(input_file="VSWAP.WL6", output_file="walls.ppm"):
+def make_wall_tileset(output_file="walls.ppm"):
     """
     Create a PPM image containing all wall tiles from the input file
     :param input_file: name of data file containing the textures
     :param output_file: name of the PPM file that will be created
     """
     tileset = bytearray()
-    with open(input_file, "rb") as fp:
+    with open(VSWAP, "rb") as fp:
         nb_chunks, first_sprite, first_sound = struct.unpack('<3H', fp.read(6))
         chunk_offset = struct.unpack('<{}I'.format(nb_chunks), fp.read(4 * nb_chunks))
         chunk_length = struct.unpack('<{}H'.format(nb_chunks), fp.read(2 * nb_chunks))
@@ -240,7 +244,7 @@ def make_sprite_tileset(output_file="sprites.ppm", indexes=None):
     :param indexes: list of indexes of sprites to add to the tileset
     """
     tileset = bytearray()
-    with open("VSWAP.WL6", "rb") as fp:
+    with open(VSWAP, "rb") as fp:
         nb_chunks, first_sprite, first_sound = struct.unpack('<3H', fp.read(6))
         if indexes is None:
             indexes = list(range(first_sound - first_sprite))
@@ -289,28 +293,3 @@ def make_sprite_tileset(output_file="sprites.ppm", indexes=None):
         fp.write('255\n'.encode('ascii'))
         fp.write(tileset)
 
-
-for i in range(1000):
-    make_sprite_tileset('{:03}.ppm'.format(i), [i])
-
-# idx = []
-# for x in (
-#     range(50),  # props
-#     range(50, 58), [90, 91, 92, 93, 95],  # soldier
-#     range(99, 107), range(131, 135),  # dog
-#     range(138, 146), [179, 180, 181, 183],  # SS soldier
-#     range(187, 195), [228, 229, 230, 232, 233],  # zombie soldier
-#     range(238, 246), [279, 280, 281, 283, 284],  # officer
-#     [288, 290, 292, 294],  # ghosts
-#     [300, 304, 305, 306, 303],  # Hans Grösse
-#     range(312, 317),  # Doctor Schabbs
-#     [321], range(328, 334),  # Fake Hitler
-#     [349], range(353, 360), [352],  # Adolf Hitler
-#     [364], range(366, 370),  # Otto Giftmacher
-#     [389], [393, 394, 395, 392],  # Gretel Grösse
-#     [400], range(404, 408),  # General Fettgesicht
-#     range(421, 426),
-# ):
-#     idx += x
-#
-# make_sprite_tileset('things.ppm', idx)
