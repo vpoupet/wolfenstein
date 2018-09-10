@@ -532,10 +532,11 @@ function drawWalls() {
         }
         // draw the wall
         for (let j = texelOffset; j < texelOffset + 64; j++) {
+            let col;
             if (isPushwall) {
-                let col = paletteRed[VSWAP.getUint8(j)];
+                col = paletteRed[VSWAP.getUint8(j)];
             } else {
-                let col = palette[VSWAP.getUint8(j)];
+                col = palette[VSWAP.getUint8(j)];
             }
             yf += stepf;
             if (yf >= 1) {
