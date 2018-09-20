@@ -86,10 +86,13 @@ function togglePushwalls() {
  */
 function toggleMap() {
     let hud = document.getElementById("hud_canvas");
+    let option = document.getElementById("option_map");
     if (hud.offsetParent === null) {
         hud.style['display'] = 'block';
+        option.getElementsByTagName("img")[0].src = "images/button_on.png";
     } else {
         hud.style['display'] = 'none';
+        option.getElementsByTagName("img")[0].src = "images/button_off.png";
     }
 }
 
