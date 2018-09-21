@@ -47,11 +47,11 @@ function toggleResolution() {
     let option = document.getElementById("option_resolution");
     if (zoom === 1) {
         setZoom(2);
-        option.getElementsByTagName("span")[0].innerText = "Resolution (320 x 200)";
+        option.getElementsByTagName("span")[0].innerText = "High Resolution (320 x 200) [R]";
         option.getElementsByTagName("img")[0].src = "images/button_off.png";
     } else {
         setZoom(1);
-        option.getElementsByTagName("span")[0].innerText = "Resolution (640 x 400)";
+        option.getElementsByTagName("span")[0].innerText = "High Resolution (640 x 400) [R]";
         option.getElementsByTagName("img")[0].src = "images/button_on.png";
     }
 }
@@ -128,6 +128,7 @@ function startGame(level) {
     document.getElementById("option_framerate").addEventListener("click", toggleFPS);
     document.getElementById("option_pushwalls").addEventListener("click", togglePushwalls);
     document.getElementById("option_map").addEventListener("click", toggleMap);
+    document.getElementById("option_skip_level").addEventListener("click", loadNextLevel);
     document.onkeydown = function (e) {
         if (e.key === "Control") {
             player.shoot();
@@ -135,6 +136,8 @@ function startGame(level) {
             toggleResolution();
         } else if (e.key === "m") {
             toggleMap();
+        } else if (e.key === "l") {
+            loadNextLevel();
         }
         pressedKeys[e.key] = true;
     };
@@ -155,4 +158,4 @@ window.onload = function() {
         document.getElementById("splash_screen").style['display'] = 'none';
         document.getElementById("episode_select").style['display'] = 'block';
     });
-}
+};

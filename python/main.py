@@ -1,3 +1,9 @@
+import pygame
+import numpy as np
+from game import Game
+from engine import cast_ray
+
+
 # Wolfenstein 3D color palette (hard-coded in executable)
 palette = [(0, 0, 0), (0, 0, 168), (0, 168, 0), (0, 168, 168), (168, 0, 0), (168, 0, 168), (168, 84, 0),
            (168, 168, 168), (84, 84, 84), (84, 84, 252), (84, 252, 84), (84, 252, 252), (252, 84, 84), (252, 84, 252),
@@ -36,3 +42,62 @@ palette = [(0, 0, 0), (0, 0, 168), (0, 168, 0), (0, 168, 168), (168, 0, 0), (168
            (52, 52, 52), (216, 244, 244), (184, 232, 232), (156, 220, 220), (116, 200, 200), (72, 192, 192),
            (32, 180, 180), (32, 176, 176), (0, 164, 164), (0, 152, 152), (0, 140, 140), (0, 132, 132), (0, 124, 124),
            (0, 120, 120), (0, 116, 116), (0, 112, 112), (0, 108, 108), (152, 0, 136)]
+
+
+def draw_walls(screen):
+    pixel_width = screen.get_width()
+    pixel_height = screen.get_height()
+    fov = 1
+    wall_height = pixel_width / (2 * fov)
+
+    screen_buffer = np.zeros((pixel_width, pixel_height, 3), dtype=np.uint8)
+
+    for col in range(pixel_width):
+        shift = (fov * (2 * col) - pixel_width) / pixel_width
+        rdx = player.dx - shift * player.dy
+        rdy = player.dy + shift * player.dx
+        # sx = player.x + rdx
+        # sy = player.y + rdy
+        rx, ry, t, texture_index, tx = cast_ray(game.map, player.x, player.y, rdx, rdy)
+
+        h = wall_height / (2 * t)  # height of the line representing the wall on the current column
+        # z_index[i] = t
+
+        yi_min = max(int(pixel_height / 2 - h), 0)
+        yi_max = min(int(pixel_height / 2 + h), pixel_height - 1)
+        screen_buffer[col, :yi_min] = 128
+        screen_buffer[col, yi_max : pixel_height] = 128
+        screen_buffer[col, yi_min: yi_max] = 255
+    pygame.surfarray.blit_array(screen, screen_buffer)
+
+
+if __name__ == '__main__':
+    clock = pygame.time.Clock()
+    game = Game()
+    player = game.player
+    game.load_level(0)
+    pygame.init()
+    screen = pygame.display.set_mode((640, 400))
+    running = True
+
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        pressed_keys = pygame.key.get_pressed()
+        if pressed_keys[pygame.K_UP]:
+            player.move(1)
+        elif pressed_keys[pygame.K_DOWN]:
+            player.move(-1)
+        if pressed_keys[pygame.K_RIGHT]:
+            player.turn(1)
+        elif pressed_keys[pygame.K_LEFT]:
+            player.turn(-1)
+
+        draw_walls(screen)
+        pygame.display.flip()
+
+        clock.tick(60)
+        # print(clock.get_fps())
+

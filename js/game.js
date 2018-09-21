@@ -176,7 +176,7 @@ function Player() {
         let m1 = map1(x, y);
         if (m0 === 21 && dx !== 0) {
             // elevator
-            loadLevel(currentLevel + 1);
+            loadNextLevel();
         }
         if (90 <= m0 && m0 <= 101) {
             // door
@@ -304,9 +304,10 @@ function Player() {
  * @param spriteIndex {number} index of texture to represent the thing
  * @param collectible {boolean} whether the thing can be collected by the player
  * @param orientable {boolean} whether the thing has different sprites depending on orientation
+ * @param blocking {boolean} whether the thing blocks player movement
  * @constructor
  */
-function Thing(x, y, spriteIndex, collectible=false, orientable=false) {
+function Thing(x, y, spriteIndex, collectible=false, orientable=false, blocking=false) {
     /**
      * Current x-coordinate on map
      * @type {number}
@@ -332,6 +333,11 @@ function Thing(x, y, spriteIndex, collectible=false, orientable=false) {
      * @type {boolean}
      */
     this.orientable = orientable;
+    /**
+     * Whether the thing blocks player movement
+     * @type {boolean}
+     */
+    this.blocking= blocking;
 
     /**
      * Start executing a sprite animation (change current sprite at regular intervals)
@@ -633,11 +639,13 @@ function setupLevel() {
                         score.totalTreasures += 1;
                     }
                 }
-                things.push(new Thing(x, y, m1 - 21, collectible));
-                if ([24, 25, 26, 28, 30, 31, 33, 34, 35, 36, 38, 39, 40, 41, 45, 58, 59, 60, 62, 63, 67, 68, 69,
-                    71, 73].indexOf(m1) >= 0) {
+                if ([24, 25, 26, 28, 30, 31, 33, 34, 35, 36, 39, 40, 41, 45, 58, 59, 60, 62, 63, 68,
+                    69].indexOf(m1) >= 0) {
                     // blocking prop
+                    things.push(new Thing(x, y, m1 - 21, collectible, false, true));
                     plane2[x][y] = true;
+                } else {
+                    things.push(new Thing(x, y, m1 - 21, collectible, false, false));
                 }
             } else if (m1 === 98) {
                 // pushwall
@@ -743,19 +751,20 @@ function update() {
             let dx = timer.dx;
             let dy = timer.dy;
             let wallValue = map0(x, y);
-            setMap0(x, y, map0(x + dx, y + dy));
+            setMap0(x, y, map0(x - dx, y - dy));
             setMap0(x + dx, y + dy, wallValue);
+            setMap1(x, y, 0);
             plane2[x][y] = false;
             plane2[x + dx][y + dy] = true;
             timer.steps -= 1;
-            if (timer.steps > 0) {
-                setMap1(x, y, 0);
+            if (timer.steps > 0 && !plane2[x + 2 * dx][y + 2 * dy]) {
+                // wall moves one more step
                 setMap1(x + dx, y + dy, 98);
                 timer.t = 0;
                 timer.x += dx;
                 timer.y += dy;
             } else {
-                setMap1(x, y, 0);
+                // wall finished moving
                 doorTimers.splice(i, 1);
                 i -= 1;
             }
@@ -791,4 +800,12 @@ function update() {
 
     // call the function again on next frame
     requestAnimationFrame(update);
+}
+
+
+/**
+ * Load the level after the current one.
+ */
+function loadNextLevel() {
+    loadLevel(currentLevel + 1);
 }

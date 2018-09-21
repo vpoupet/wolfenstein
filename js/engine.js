@@ -111,39 +111,12 @@ for (let i = 0; i < gamePalette.length; i++) {
  * Whether secret pushwalls should be displayed differently (cheat)
  * @type {boolean}
  */
-showPushwalls = false;
+let showPushwalls = false;
 /**
  * Current flashing effect (if any)
  * @type {Flash}
  */
 let flash;
-
-
-/**
- * Returns the palette index of a pixel from a wall texture
- * @param x {number} x-coordinate of the required pixel (float in [0, 1))
- * @param y {number} y-coordinate of the required pixel (float in [0, 1))
- * @param index {number} index of the wall texture
- * @returns {number} palette index of the corresponding pixel
- */
-function getWallTexel(x, y, index) {
-    return VSWAP.getUint8(wallTexturesOffset + 4096 * index + ~~(64 * y) + 64 * ~~(64 * x));
-}
-
-
-/**
- * Returns the palette index of a pixel from a sprite texture
- * @param x {number} x-coordinate of the required pixel (float in [0, 1))
- * @param y {number} y-coordinate of the required pixel (float in [0, 1))
- * @param index {number} index of the wall texture
- * @returns {number} palette index of the corresponding pixel
- */
-function getSpriteTexel(x, y, index) {
-    if (spriteTextures[index] === undefined) {
-        makeSprite(index);
-    }
-    return spriteTextures[index][~~(64 * y) + 64 * ~~(64 * x)];
-}
 
 
 /**
@@ -482,54 +455,26 @@ function drawWalls() {
         let h = wallHeight / (2 * t); // height of the line representing the wall on the current column
         zIndex[i] = t;
 
-        // !!! Older method !!!
-        // draw pixels in current column
-        // let texelOffset = wallTexturesOffset + 4096 * textureIndex + 64 * ~~(64 * tx);
-        // for (let j = 0; j < pixelHeight; j++) {
-        //     if (j <= pixelHeight / 2 - h) {
-        //         // draw ceiling and floor
-        //         if (surfaceTexturesOn) {
-        //             let d = wallHeight / (pixelHeight - 2 * j);
-        //             let fx = sx + (rx - sx) * (d - 1) / (t - 1);
-        //             let fy = sy + (ry - sy) * (d - 1) / (t - 1);
-        //             drawPixel(i, j, getSurfaceTexel(fx % 1, fy % 1, 1));
-        //             drawPixel(i, pixelHeight - j, getSurfaceTexel(fx % 1, fy % 1, 0));
-        //         } else {
-        //             // draw ceiling and floor (plain color, as in original game)
-        //             drawPixel(i, j, 29);
-        //             drawPixel(i, pixelHeight - 1 - j, 25);
-        //         }
-        //     } else if (j > pixelHeight / 2 + h) {
-        //         break;
-        //     } else {
-        //         if (isPushwall && showPushwalls) {
-        //             drawRedPixel(i, j, VSWAP.getUint8(texelOffset + ~~(64 * (j - pixelHeight / 2 - h) / (2 * h))));
-        //         } else {
-        //             drawPixel(i, j, VSWAP.getUint8(texelOffset + ~~(64 * (j - pixelHeight / 2 - h) / (2 * h))));
-        //         }
-        //     }
-        // }
-
         let yi = ~~(pixelHeight / 2 - h);
         let yf = (pixelHeight / 2 - h) % 1;
         let stepi = ~~(h / 32);
         let stepf = (h / 32) % 1;
         let texelOffset = wallTexturesOffset + 4096 * textureIndex + 64 * ~~(64 * tx);
         // draw ceiling and floor
-        if (surfaceTexturesOn) {
-            for (let j = 0; j < y; j++) {
-                let d = wallHeight / (pixelHeight - 2 * j);
-                let fx = sx + (rx - sx) * (d - 1) / (t - 1);
-                let fy = sy + (ry - sy) * (d - 1) / (t - 1);
-                drawPixel(i, j, getSurfaceTexel(fx % 1, fy % 1, 1));
-                drawPixel(i, pixelHeight - j, getSurfaceTexel(fx % 1, fy % 1, 0));
-            }
-        } else {
+        // if (surfaceTexturesOn) {
+        //     for (let j = 0; j < y; j++) {
+        //         let d = wallHeight / (pixelHeight - 2 * j);
+        //         let fx = sx + (rx - sx) * (d - 1) / (t - 1);
+        //         let fy = sy + (ry - sy) * (d - 1) / (t - 1);
+        //         drawPixel(i, j, getSurfaceTexel(fx % 1, fy % 1, 1));
+        //         drawPixel(i, pixelHeight - j, getSurfaceTexel(fx % 1, fy % 1, 0));
+        //     }
+        // } else {
             for (let j = 0; j <= yi; j++) {
-                drawPixel(i, j, 29);
-                drawPixel(i, pixelHeight - 1 - j, 25);
+                pixels.setUint32((pixelWidth * j + i) << 2, palette[29], true);
+                pixels.setUint32((pixelWidth * (pixelHeight - 1 - j) + i) << 2, palette[25], true);
             }
-        }
+        // }
         // draw the wall
         for (let j = texelOffset; j < texelOffset + 64; j++) {
             let col;
@@ -555,10 +500,6 @@ function drawWalls() {
     }
 }
 
-// function getWallTexel(x, y, index) {
-//     return VSWAP.getUint8(wallTexturesOffset + 4096 * index + ~~(64 * y) + 64 * ~~(64 * x));
-// }
-// drawRedPixel(i, j, getWallTexel(tx, (j - (pixelHeight / 2 - h)) / (2 * h), textureIndex));
 
 /**
  * Draw all things on screen from furthest to nearest
@@ -566,7 +507,8 @@ function drawWalls() {
 function drawThings() {
     for (let k = 0; k < things.length; k++) {
         let t = things[k];
-        if (t.rx <= 0) {
+        if (t.rx < player.radius) {
+            // thing is behind the screen
             return;
         } else if (Math.abs(t.ry) > t.rx + 1) {
             // thing is out of field of view
@@ -581,30 +523,7 @@ function drawThings() {
             index += (~~(-4 * Math.atan2(t.y - player.y, t.x - player.x) / Math.PI + 12.5) - 2 * t.direction) % 8;
         }
 
-        if (th <= 128) {
-            // thing is small, compute color for each rendered pixel
-            for (let x = Math.max(tx, 0); x < Math.min(tx + th, pixelWidth); x++) {
-                if (t.rx < zIndex[x]) {
-                    for (let y = Math.max(ty, 0); y < Math.min(ty + th, pixelHeight); y++) {
-                        drawPixel(x, y, getSpriteTexel((x - tx) / th, (y - ty) / th, index));
-                    }
-                }
-            }
-        } else {
-            if (spriteTextures[index] === undefined) {
-                makeSprite(index);
-            }
-            // thing is large, render each texture pixel as a large square
-            let scale = Math.ceil(th / 64);
-            for (let x = 0; x < 64; x++) {
-                for (let y = 0; y < 64; y++) {
-                    let col = spriteTextures[index][y + 64 * x];
-                    if (col !== undefined) {
-                        drawScaledPixel(tx + ~~(x * th / 64), ty + ~~(y * th / 64), col, scale, t.rx);
-                    }
-                }
-            }
-        }
+        drawSprite(index, tx, ty, th, t.rx);
     }
 }
 
@@ -613,35 +532,50 @@ function drawThings() {
  * Draw the player's weapon in hand
  */
 function drawWeapon() {
-    if (spriteTextures[player.weaponSprite] === undefined) {
-        makeSprite(player.weaponSprite);
-    }
-    let scale = zoom === 1 ? 4 : 2;
-    for (let x = 0; x < 64; x++) {
-        for (let y = 0; y < 64; y++) {
-            let col = spriteTextures[player.weaponSprite][64 * x + y];
-            if (col !== undefined) {
-                drawScaledPixel(scale * (x - 32) + pixelWidth / 2, scale * (y - 64) + pixelHeight, col, scale);
-            }
-        }
-    }
+    let height = zoom === 1 ? 384 : 192;
+    drawSprite(player.weaponSprite, pixelWidth / 2 - height / 2, pixelHeight - height, height);
 }
 
 
 /**
- * Draw a pixel on the canvas by modifying the pixels array
- * @param x {number} x-coordinate of the screen pixel to change
- * @param y {number} y-coordinate of the screen pixel to change
- * @param col {number} palette index of color
+ * Draw a sprite on screen
+ * @param index {number} index of the sprite texture
+ * @param x {number} x-coordinate of the top-left corner of the rendered sprite
+ * @param y {number} y-coordinate of the top-left corner of the rendered sprite
+ * @param height {number} height of the rendered sprite in pixels
+ * @param dist {number} distance from player (if sprite is farther than zIndex, column is not drawn)
  */
-function drawPixel(x, y, col) {
-    if (col !== undefined) {
-        pixels.setUint32((pixelWidth * y + x) << 2, palette[col], true);
-    }
-}
-function drawRedPixel(x, y, col) {
-    if (col !== undefined) {
-        pixels.setUint32((pixelWidth * y + x) << 2, paletteRed[col], true);
+function drawSprite(index, x, y, height, dist=0) {
+    // rendered size of sprite pixels
+    let scale = Math.ceil(height / 64);
+    // read sprite data from VSWAP.WL6
+    let firstSprite = VSWAP.getUint16(2, true);
+    let spriteOffset = VSWAP.getUint32(6 + 4 * (firstSprite + index), true);
+    let firstCol = VSWAP.getUint16(spriteOffset, true);
+    let lastCol = VSWAP.getUint16(spriteOffset + 2, true);
+    let nbCol = lastCol - firstCol + 1;
+    let pixelPoolOffset = spriteOffset + 4 + 2 * nbCol;
+    // draw pixels column by column, post by post
+    for (let col = firstCol; col <= lastCol; col++) {
+        let colOffset = spriteOffset + VSWAP.getUint16(spriteOffset + 4 + 2 * (col - firstCol), true);
+        while (true) {
+            let endRow = VSWAP.getUint16(colOffset, true) / 2;
+            if (endRow === 0) {
+                break;
+            }
+            let startRow = VSWAP.getUint16(colOffset + 4, true) / 2;
+            colOffset += 6;
+            for (let row = startRow; row < endRow; row++) {
+                drawScaledPixel(
+                    x + ~~(col * height / 64),
+                    y + ~~(row * height / 64),
+                    VSWAP.getUint8(pixelPoolOffset),
+                    scale,
+                    dist
+                );
+                pixelPoolOffset += 1;
+            }
+        }
     }
 }
 
@@ -656,11 +590,11 @@ function drawRedPixel(x, y, col) {
  * @param dist {number} (optional) distance of the object that contains the pixel. If the distance is larger than the
  * zIndex for a given column, no pixel will be drawn on the canvas
  */
-function drawScaledPixel(x, y, col, scale, dist=undefined) {
+function drawScaledPixel(x, y, col, scale, dist=0) {
     if (col !== undefined) {
         let color = palette[col];
         for (let col = x >= 0 ? x : 0; col < x + scale && col < pixelWidth; col++) {
-            if (dist !== undefined && dist >= zIndex[col]) {
+            if (dist >= zIndex[col]) {
                 // sprite is hidden on this column
                 continue;
             }
@@ -688,4 +622,3 @@ function setZoom(n) {
     pixels = new DataView(imageData.data.buffer);
     context.scale(zoom, zoom);
 }
-

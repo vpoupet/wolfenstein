@@ -11,18 +11,15 @@ let contextHUD;
 let shouldDrawMap = true;
 
 function drawMap() {
-    contextHUD.fillStyle = 'grey';
-    contextHUD.fillRect(0, 0, 256, 256);
+    contextHUD.clearRect(0, 0, 256, 256);
     let doors = [];
     let goldDoors = [];
-    let goldKeys = [];
     let silverDoors = [];
-    let silverKeys = [];
     let elevators = [];
     let pushwalls = [];
     let treasures = [];
-    let enemies = [];
-    contextHUD.fillStyle = 'black';
+    let walls = [];
+    contextHUD.fillStyle = '#888888';
     for (let x = 0; x < 64; x++) {
         for (let y = 0; y < 64; y++) {
             let m0 = map0(x, y);
@@ -32,8 +29,8 @@ function drawMap() {
                     pushwalls.push({x: x, y: y});
                 } else if (m0 === 21) {
                     elevators.push({x: x, y: y});
-                } else {
-                    contextHUD.fillRect(4 * x, 4 * y, 4, 4);
+                } else if (connectedWall(x, y)) {
+                    walls.push({x: x, y: y});
                 }
             } else if (m0 === 90 || m0 === 91 || m0 === 100 || m0 === 101) {
                 doors.push({x: x, y: y});
@@ -41,11 +38,25 @@ function drawMap() {
                 goldDoors.push({x: x, y: y});
             } else if (m0 === 94 || m0 === 95) {
                 silverDoors.push({x: x, y: y});
-            } else if (m0 === 90 || m0 === 91) {
-                doors.push({x: x, y: y});
-            } else if (52 <= m1 && m1 <= 56) {
-                treasures.push({x: x, y: y});
+            } else {
+                contextHUD.fillRect(4 * x, 4 * y, 4, 4);
+                if (52 <= m1 && m1 <= 56) {
+                    treasures.push({x: x, y: y});
+                }
             }
+        }
+    }
+    // walls
+    contextHUD.fillStyle = '#000000';
+    for (let i = 0; i < walls.length; i++) {
+        contextHUD.fillRect(4 * walls[i].x, 4 * walls[i].y, 4, 4);
+    }
+    contextHUD.fillStyle = '#444444';
+    // obstacles
+    for (let i = 0; i < things.length; i++) {
+        let t = things[i];
+        if (t.blocking) {
+            contextHUD.fillRect(4 * (t.x - .5), 4 * (t.y - .5), 4, 4);
         }
     }
     // doors
@@ -105,3 +116,7 @@ function drawMap() {
     contextHUD.fillRect(4 * ~~player.x, 4 * ~~player.y, 4, 4);
 }
 
+function connectedWall(x, y) {
+    return map0(x - 1, y) > 63 || map0(x + 1, y) > 63 || map0(x, y - 1) > 63 || map0(x, y + 1) > 63 ||
+        map0(x - 1, y - 1) > 63 || map0(x - 1, y + 1) > 63 || map0(x + 1, y - 1) > 63 || map0(x + 1, y + 1) > 63;
+}

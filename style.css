@@ -91,7 +91,8 @@ body {
     background: rgb(140, 0, 0);
 }
 
-.option {
+.menu {
+    user-select: none;
     display: flex;
     align-items: center;
     background-color: rgb(89, 0, 0);
@@ -99,6 +100,11 @@ body {
     border: 4px solid;
     padding: 4px;
     border-color: rgb(65, 0, 0) rgb(239, 0, 0) rgb(239, 0, 0) rgb(65, 0, 0);
+}
+
+.menu.option {
+    cursor: pointer;
+    border-color: rgb(239, 0, 0) rgb(65, 0, 0) rgb(65, 0, 0) rgb(239, 0, 0);
 }
 
 .option span {

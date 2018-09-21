@@ -14,13 +14,6 @@ let MAPHEAD, GAMEMAPS;
  */
 let wallTexturesOffset;
 /**
- * Array of tiles for the sprites. The array is initially empty and filled lazily as sprites are needed.
- * The elements of the array are 4096 long arrays (64 x 64 pixels) containing palette indexes or undefined (transparent
- * pixels)
- * @type {Array}
- */
-let spriteTextures;
-/**
  * DataViews of the level data from GAMEMAPS.WL6
  * @type {DataView}
  */
@@ -215,47 +208,17 @@ function loadLevel(level) {
 }
 
 
-/**
- * Decode a sprite image from the VSWAP.WL6 data file.
- * The decoded sprite is added to the spriteTextures array.
- * @param index {number} index of the sprite to decode
- */
-function makeSprite(index) {
-    let firstSprite = VSWAP.getUint16(2, true);
-    let spriteOffset = VSWAP.getUint32(6 + 4 * (firstSprite + index), true);
-    let firstCol = VSWAP.getUint16(spriteOffset, true);
-    let lastCol = VSWAP.getUint16(spriteOffset + 2, true);
-    let nbCol = lastCol - firstCol + 1;
-    let pixelPoolOffset = spriteOffset + 4 + 2 * nbCol;
-    let sprite = new Array(4096);
-    for (let col = firstCol; col <= lastCol ; col++) {
-        let colOffset = spriteOffset + VSWAP.getUint16(spriteOffset + 4 + 2 * (col - firstCol), true);
-        while (true) {
-            let endRow = VSWAP.getUint16(colOffset, true) / 2;
-            if (endRow === 0) {
-                break;
-            }
-            let startRow = VSWAP.getUint16(colOffset + 4, true) / 2;
-            colOffset += 6;
-            for (let row = startRow; row < endRow; row++) {
-                sprite[64 * col + row] = VSWAP.getUint8(pixelPoolOffset);
-                pixelPoolOffset += 1;
-            }
-        }
-    }
-    spriteTextures[index] = sprite;
-}
-
-
 // Getters and setters for plane0 and plane1
 function map0(x, y) {
-    return plane0.getUint16(2 * (x + 64 * y), true);
+    try { return plane0.getUint16(2 * (x + 64 * y), true); }
+    catch(e) { return undefined; }
 }
 function setMap0(x, y, value) {
     plane0.setUint16(2 * (x + 64 * y), value, true);
 }
 function map1(x, y) {
-    return plane1.getUint16(2 * (x + 64 * y), true);
+    try { return plane1.getUint16(2 * (x + 64 * y), true); }
+    catch(e) { return undefined; }
 }
 function setMap1(x, y, value) {
     plane1.setUint16(2 * (x + 64 * y), value, true);
