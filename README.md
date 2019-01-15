@@ -2,7 +2,7 @@
 
 A *JavaScript* rewriting of the original Wolfenstein 3D (1992) engine.
 
-[Link to result](https://vpoupet.github.io/wolfenstein/index.html)
+[Link to result](https://vpoupet.github.io/wolfenstein/game.html)
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ This is a simple *HTML/CSS/JavaScript* project, so no real installation is requi
 
 
 Important files and directories are
-- `index.html`: main page
+- `game.html`: main page
 - `style.css`: basic styling of the index
 - `data/`: original game data (level maps and wall/sprite textures)
 - `fonts/`: "pixel" fonts used on the main page
@@ -22,11 +22,11 @@ Important files and directories are
     - `interface.js`: player interface (HUD, key events, etc.)
     - `map.js`: code for overlayed level map
 
-Simply copy all these files and directories and open `index.html` to use.
+Simply copy all these files and directories and open `game.html` to use.
 
 ## Authors
 
-- Victor Poupet - Initial work [vpoupet](https://github.com/vpoupet)
+- [Victor Poupet](https://github.com/vpoupet) - Initial work
 
 ## Acknowledgments
 
