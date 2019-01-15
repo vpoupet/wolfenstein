@@ -32,3 +32,8 @@ Simply copy all these files and directories and open `game.html` to use.
 
 - [Lode's Computer Graphics Tutorial](https://lodev.org/cgtutor/index.html): Good explanations for the raycasting techniques used in the Wolfenstein 3D engine (section on Raycasting)
 - [Wolf3D Specs by Gaarabis](http://gaarabis.free.fr/_sites/specs/wlspec_index.html): File format specifications for the original game files (`MAPHEAD.WL6`, `GAMEMAPS.WL6` and `VSWAP.WL6`)
+
+## Documentation
+
+- [Engine](https://vpoupet.github.io/wolfenstein/engine.md)
+- [Game files](https://vpoupet.github.io/wolfenstein/files.md)
