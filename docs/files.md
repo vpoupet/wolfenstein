@@ -41,3 +41,4 @@ As with RLEW-encoding the first word represents the total length in bytes of the
 **Note:** Because 0xA7 and 0xA8 have special meaning, a special case is used to represent directly words that have one of these as second byte: an exception is recognized when *x* = 0 and *y* = 0xA7 or 0xA8. In that case an extra byte *z* is read and the word *zy* is appended to the output.
 
 See function `carmackDecode` in `js/files.js` for an implementation.
+

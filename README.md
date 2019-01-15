@@ -35,5 +35,5 @@ Simply copy all these files and directories and open `game.html` to use.
 
 ## Documentation
 
-- [Engine](https://vpoupet.github.io/wolfenstein/docs/engine.md)
-- [Game files](https://vpoupet.github.io/wolfenstein/docs/files.md)
+- [Engine](https://vpoupet.github.io/wolfenstein/docs/engine)
+- [Game files](https://vpoupet.github.io/wolfenstein/docs/files)
