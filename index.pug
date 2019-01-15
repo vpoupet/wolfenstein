@@ -1,0 +1,57 @@
+doctype html
+html
+  head
+    link(rel="stylesheet" type="text/css" href="style.css")
+    meta(charset="utf-8")
+body
+  #main
+    #game_screen
+      img#splash_screen(src="images/splash.png")
+      #episode_select(style="display: none")
+        img(src="images/ep_select.png")
+        #episodes_list
+          img.episode(src="images/ep_1.png" onclick="startGame(0)")
+          img.episode(src="images/ep_2.png" onclick="startGame(10)")
+          img.episode(src="images/ep_3.png" onclick="startGame(20)")
+          img.episode(src="images/ep_4.png" onclick="startGame(30)")
+          img.episode(src="images/ep_5.png" onclick="startGame(40)")
+          img.episode(src="images/ep_6.png" onclick="startGame(50)")
+    #player_info
+      #score
+        span#kills
+        span#treasures
+        span#secrets
+      span#keys
+        img#gold_key(src="images/gold_key.png")
+        img#silver_key(src="images/silver_key.png")
+  #options
+    img(src="images/options.png")
+    span#option_resolution.menu.option
+      img(src="images/button_off.png")
+      span Resolution (320 x 200) [R]
+      br
+    span#option_framerate.menu.option
+      img(src="images/button_on.png")
+      span Framerate (60 fps)
+      br
+    span#option_pushwalls.menu.option
+      img(src="images/button_off.png")
+      span Reveal secret pushwalls (cheat)
+      br
+    span#option_map.menu.option
+      img(src="images/button_off.png")
+      span Show map (cheat) [M]
+      br
+    span#option_skip_level.menu.option
+      span Skip level (cheat) [L]
+      br
+    span.menu
+      | Instructions :<br>
+      | &ensp;- Move with arrow keys<br>
+      | &ensp;- Open/close doors and secrets with Space<br>
+      | &ensp;- Shoot with Control<br>
+  script(src="js/files.js")
+  script(src="js/map.js")
+  script(src="js/engine.js")
+  script(src="js/game.js")
+  script(src="js/interface.js")

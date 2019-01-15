@@ -111,15 +111,16 @@ function carmackDecode(inView) {
 /**
  * Asynchronously load a binary file
  * @param url {String} path to file
- * @param onload {function} callback to execute after loading
+ * @returns {Promise} A promise containing the content of the file as an ArrayBuffer
  */
-function loadBytes(url, onload) {
-    let req = new XMLHttpRequest();
-    req.onload = onload;
-    req.responseType = "arraybuffer";
-    req.open("GET", url);
-    // request response is typed as an ArrayBuffer
-    req.send();
+function loadBytes(url) {
+    return new Promise(resolve => {
+        let req = new XMLHttpRequest();
+        req.onload = () => resolve(req.response);
+        req.responseType = "arraybuffer";
+        req.open("GET", url);
+        req.send();
+    });
 }
 
 
@@ -128,52 +129,25 @@ function loadBytes(url, onload) {
  * - MAPHEAD.WL6: offsets to the map data for each level in GAMEMAPS.WL6
  * - GAMEMAPS.WL6: levels structure (walls, objects, enemies, etc.
  * - VSWAP.WL6: graphics (walls and sprites) and sounds
- * @param onload {function} callback to execute when all resources are loaded
+ * @returns {Promise} combined promise of all asynchronous tasks
  */
-function loadResources(onload) {
-    // whether the splash screen has been shown at least one second
-    let splashEnded = false;
-
-    /**
-     * If all resources are loaded, and splash screen has finished showing, execute callback function
-     */
-    function checkReady() {
-        if (splashEnded &&
-            GAMEMAPS !== undefined &&
-            MAPHEAD !== undefined &&
-            VSWAP !== undefined) {
-            onload();
-        }
-    }
-
-    // Ensure the splash screen stays for at least one second
-    setTimeout(function(){
-        splashEnded = true;
-        checkReady();
-    }, 1000);
+function loadResources() {
+    // display splash screen for at least 1 second
+    let splashPromise = new Promise(resolve => setTimeout(resolve, 1000));
     // load game files
-    loadBytes(
-        "data/GAMEMAPS.WL6",
-        function() {
-            GAMEMAPS = this.response;
-            checkReady();
-        }
-    );
-    loadBytes(
-        "data/MAPHEAD.WL6",
-        function() {
-            MAPHEAD = this.response;
-            checkReady();
-        }
-    );
-    loadBytes(
-        "data/VSWAP.WL6",
-        function() {
-            VSWAP = new DataView(this.response);
-            wallTexturesOffset = VSWAP.getUint32(6, true);
-            checkReady();
-        }
-    )
+    let gamemapsPromise = loadBytes("data/GAMEMAPS.WL6");
+    let mapheadPromise = loadBytes("data/MAPHEAD.WL6");
+    let vswapPromise = loadBytes("data/VSWAP.WL6");
+    // prepare game data
+    gamemapsPromise.then(req => GAMEMAPS = req);
+    mapheadPromise.then(req => MAPHEAD = req);
+    vswapPromise.then(req => {
+        VSWAP = new DataView(req);
+        wallTexturesOffset = VSWAP.getUint32(6, true);
+    });
+
+    // return a combined promise
+    return Promise.all([splashPromise, gamemapsPromise, mapheadPromise, vswapPromise]);
 }
 
 

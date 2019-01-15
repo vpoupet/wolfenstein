@@ -1,65 +1,29 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <link rel="stylesheet" type="text/css" href="style.css">
-        <meta charset="utf-8">
-    </head>
-    <body>
-        <div id="main">
-            <div id="game_screen">
-                <img id="splash_screen" src="images/splash.png">
-                <div id="episode_select" style="display:none">
-                    <img src="images/ep_select.png">
-                    <div id="episodes_list">
-                        <img class="episode" src="images/ep_1.png" onclick="startGame(0)">
-                        <img class="episode" src="images/ep_2.png" onclick="startGame(10)">
-                        <img class="episode" src="images/ep_3.png" onclick="startGame(20)">
-                        <img class="episode" src="images/ep_4.png" onclick="startGame(30)">
-                        <img class="episode" src="images/ep_5.png" onclick="startGame(40)">
-                        <img class="episode" src="images/ep_6.png" onclick="startGame(50)">
-                    </div>
-                </div>
-            </div>
-            <div id="player_info">
-                <div id="score">
-                    <span id="kills"></span>
-                    <span id="treasures"></span>
-                    <span id="secrets"></span>
-                </div>
-                <span id="keys">
-                    <img id="gold_key" src="images/gold_key.png">
-                    <img id="silver_key" src="images/silver_key.png">
-                </span>
-            </div>
-        </div>
-        <div id="options">
-            <img src="images/options.png">
-            <span class="menu option" id="option_resolution">
-                <img src="images/button_off.png"><span>High Resolution (320 x 200) [R]</span><br>
-            </span>
-            <span class="menu option" id="option_framerate">
-                <img src="images/button_on.png"><span>Framerate (60 fps)</span><br>
-            </span>
-            <span class="menu option" id="option_pushwalls">
-                <img src="images/button_off.png"><span>Reveal secret pushwalls (cheat)</span><br>
-            </span>
-            <span class="menu option" id="option_map">
-                <img src="images/button_off.png"><span>Show map (cheat) [M]</span><br>
-            </span>
-            <span class="menu option" id="option_skip_level">
-                <span>Skip level (cheat) [L]</span><br>
-            </span>
-            <span class="menu">
-                Instructions :<br>
-                &ensp;- Move with arrow keys<br>
-                &ensp;- Open/close doors and secrets with Space<br>
-                &ensp;- Shoot with Control<br>
-            </span>
-            <script src="js/files.js"></script>
-            <script src="js/map.js"></script>
-            <script src="js/engine.js"></script>
-            <script src="js/game.js"></script>
-            <script src="js/interface.js"></script>
-        </div>
-    </body>
+  <head>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta charset="utf-8">
+  </head>
 </html>
+<body>
+  <div id="main">
+    <div id="game_screen"><img id="splash_screen" src="images/splash.png">
+      <div id="episode_select" style="display: none"><img src="images/ep_select.png">
+        <div id="episodes_list"><img class="episode" src="images/ep_1.png" onclick="startGame(0)"><img class="episode" src="images/ep_2.png" onclick="startGame(10)"><img class="episode" src="images/ep_3.png" onclick="startGame(20)"><img class="episode" src="images/ep_4.png" onclick="startGame(30)"><img class="episode" src="images/ep_5.png" onclick="startGame(40)"><img class="episode" src="images/ep_6.png" onclick="startGame(50)"></div>
+      </div>
+    </div>
+    <div id="player_info">
+      <div id="score"><span id="kills"></span><span id="treasures"></span><span id="secrets"></span></div><span id="keys"><img id="gold_key" src="images/gold_key.png"><img id="silver_key" src="images/silver_key.png"></span>
+    </div>
+  </div>
+  <div id="options"><img src="images/options.png"><span class="menu option" id="option_resolution"><img src="images/button_off.png"><span>Resolution (320 x 200) [R]</span><br></span><span class="menu option" id="option_framerate"><img src="images/button_on.png"><span>Framerate (60 fps)</span><br></span><span class="menu option" id="option_pushwalls"><img src="images/button_off.png"><span>Reveal secret pushwalls (cheat)</span><br></span><span class="menu option" id="option_map"><img src="images/button_off.png"><span>Show map (cheat) [M]</span><br></span><span class="menu option" id="option_skip_level"><span>Skip level (cheat) [L]</span><br></span><span class="menu">
+      Instructions :<br>
+      &ensp;- Move with arrow keys<br>
+      &ensp;- Open/close doors and secrets with Space<br>
+      &ensp;- Shoot with Control<br></span></div>
+  <script src="js/files.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/interface.js"></script>
+</body>

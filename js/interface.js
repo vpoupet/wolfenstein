@@ -138,11 +138,16 @@ function startGame(level) {
             toggleMap();
         } else if (e.key === "l") {
             loadNextLevel();
+        } else if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            e.preventDefault();
+            pressedKeys[e.key] = true;
         }
-        pressedKeys[e.key] = true;
     };
     document.onkeyup = function (e) {
-        pressedKeys[e.key] = false;
+        if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            e.preventDefault();
+            pressedKeys[e.key] = false;
+        }
     };
     document.onkeypress = function (e) {
         if (e.key === " ") {
@@ -154,7 +159,7 @@ function startGame(level) {
 
 window.onload = function() {
     // load game data files, and display the episode selection screen
-    loadResources(function () {
+    loadResources().then(() => {
         document.getElementById("splash_screen").style['display'] = 'none';
         document.getElementById("episode_select").style['display'] = 'block';
     });
