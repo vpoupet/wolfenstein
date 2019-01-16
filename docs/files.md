@@ -7,7 +7,9 @@ Three files are used in this project:
 - `GAMEMAPS.WL6` contains the map data for all levels (walls, enemies, objects, etc.);
 - `MAPHEAD.WL6` contains a list of offsets to the data for each level in the `GAMEMAPS.WL6` file.
 
-**Note:** In all files, all multi-byte integers are stored in little-endian format.
+#### Endianness
+
+In all files, all multi-byte integers are stored in little-endian format.
 
 ## Compression
 
@@ -42,3 +44,9 @@ As with RLEW-encoding the first word represents the total length in bytes of the
 
 See function `carmackDecode` in `js/files.js` for an implementation.
 
+## MAPHEAD.WL6
+
+This very short file contains the *RLEW tag* used for all other RLEW-compressed files (it's 0xFEFE) as well as offsets to the data for each level in the `GAMEMAPS.WL6` file:
+
+|`UInt16`      | RLEW tag |
+|`UInt32[100]` | Offsets for levels 00 to 99 in `GAMEMAPS.WL6` |
