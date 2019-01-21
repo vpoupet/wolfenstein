@@ -629,7 +629,7 @@ function setupLevel() {
                     player.dx = -1;
                     player.dy = 0;
                 }
-            } else if (23 <= m1 && m1 <= 74) {
+            } else if (23 <= m1 && m1 <= 70) {
                 // props
                 let collectible = false;
                 if ([29, 43, 44, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56].indexOf(m1) >= 0) {
