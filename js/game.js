@@ -127,12 +127,13 @@ function Player() {
     /**
      * Move forward
      * @param length {number} distance to move (use negative value to move backwards)
+     * @param sideways {number} distance to move towards the right (strafe)
      */
-    this.move = function (length) {
+    this.move = function (length, sideways = 0) {
         let oldx = ~~this.x;
         let oldy = ~~this.y;
-        let x = this.x + this.dx * length;
-        let y = this.y + this.dy * length;
+        let x = this.x + this.dx * length - this.dy * sideways;
+        let y = this.y + this.dy * length + this.dx * sideways;
         if (this.canMoveTo(x, this.y)) {
             this.x = x;
         }
@@ -717,17 +718,44 @@ function setupLevel() {
  */
 function update() {
     // update player position and direction
-    if (pressedKeys["ArrowRight"]) {
-        player.turn(player.speed_a)
+    let movement = new Set();
+    let turnAngle = 0;
+    let moveForward = 0;
+    let moveSideways = 0;
+    for (let key in keymap) {
+        if (pressedKeys[key]) {
+            movement.add(keymap[key]);
+        }
     }
-    if (pressedKeys["ArrowLeft"]) {
-        player.turn(-player.speed_a)
+    if (movement.has("turn right")) {
+        turnAngle += player.speed_a;
     }
-    if (pressedKeys["ArrowUp"]) {
-        player.move(player.speed)
+    if (movement.has("turn left")) {
+        turnAngle -= player.speed_a;
     }
-    if (pressedKeys["ArrowDown"]) {
-        player.move(-player.speed)
+    if (movement.has("move forward")) {
+        moveForward += player.speed;
+    }
+    if (movement.has("move backward")) {
+        moveForward -= player.speed;
+    }
+    if (movement.has("strafe right")) {
+        moveSideways += player.speed;
+    }
+    if (movement.has("strafe left")) {
+        moveSideways -= player.speed;
+    }
+    if (turnAngle !== 0) {
+        player.turn(turnAngle);
+    }
+    if (moveForward !== 0) {
+        if (moveSideways !== 0) {
+            player.move(moveForward / Math.sqrt(2), moveSideways / Math.sqrt(2));
+        } else {
+            player.move(moveForward);
+        }
+    } else {
+        player.move(0, moveSideways);
     }
 
     // update things

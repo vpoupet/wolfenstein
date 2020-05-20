@@ -3,6 +3,17 @@
  * @type {{String: boolean}}
  */
 let pressedKeys = {};
+let keymap = {
+    'ArrowUp': 'move forward',
+    'ArrowDown': 'move backward',
+    'ArrowLeft': 'turn left',
+    'ArrowRight': 'turn right',
+    'z': 'move forward',
+    's': 'move backward',
+    'q': 'strafe left',
+    'd': 'strafe right',
+}
+
 /**
  * HTML Canvas in which the game view is drawn
  * @type {HTMLCanvasElement}
@@ -108,6 +119,8 @@ function startGame(level) {
     canvas.id = 'game_canvas';
     canvas.width = 640;
     canvas.height = 400;
+    canvas.addEventListener('click', handleClick, false);
+    document.addEventListener('pointerlockchange', handleLockChange, false);
     context = canvas.getContext("2d", {alpha: false});
     setZoom(2);  // by default start in 320 x 200 resolution
     gameScreen.innerHTML = '';
@@ -138,13 +151,13 @@ function startGame(level) {
             toggleMap();
         } else if (e.key === "l") {
             loadNextLevel();
-        } else if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        } else if (e.key in keymap) {
             e.preventDefault();
             pressedKeys[e.key] = true;
         }
     };
     document.onkeyup = function (e) {
-        if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        if (e.key in keymap) {
             e.preventDefault();
             pressedKeys[e.key] = false;
         }
@@ -157,7 +170,30 @@ function startGame(level) {
 }
 
 
-window.onload = function() {
+function handleClick() {
+    if (document.pointerLockElement === canvas) {
+        player.shoot();
+    } else {
+        canvas.requestPointerLock();
+    }
+}
+
+
+function handleLockChange() {
+    if (document.pointerLockElement === canvas) {
+        document.addEventListener('mousemove', handleMouseMove, false);
+    } else {
+        document.removeEventListener('mousemove', handleMouseMove);
+    }
+}
+
+
+function handleMouseMove(e) {
+    player.turn(e.movementX * player.speed_a / 3);
+}
+
+
+window.onload = function () {
     // load game data files, and display the episode selection screen
     loadResources().then(() => {
         document.getElementById("splash_screen").style['display'] = 'none';
