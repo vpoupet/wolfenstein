@@ -213,23 +213,21 @@ function flashPalette(redFlash, greenFlash, blueFlash) {
  */
 function drawWalls() {
     for (let i = 0; i < pixelWidth; i++) {
-        let isPushwall = false;  // remember if wall is a pushwall to be able to draw it differently if needed
         // cast a ray for each screen column
+        let isPushwall = false;  // remember if wall is a pushwall to be able to draw it differently if needed
 
         // current column position on the camera plane
-        let shift = fov * ((i << 1) - pixelWidth) / pixelWidth;
+        const shift = fov * ((i << 1) - pixelWidth) / pixelWidth;
         // direction of the ray
-        let rdx = player.dx - shift * player.dy;
-        let rdy = player.dy + shift * player.dx;
-        // screen point coordinates in the direction of the ray
-        let sx = player.x + rdx;
-        let sy = player.y + rdy;
+        let dx = player.dx - shift * player.dy;
+        let dy = player.dy + shift * player.dx;
+
         // direction in which the ray moves along each axis
-        let stepx = rdx >= 0 ? 1 : -1;
-        let stepy = rdy >= 0 ? 1 : -1;
+        const stepx = dx >= 0 ? 1 : -1;
+        const stepy = dy >= 0 ? 1 : -1;
         // take absolute values of ray direction
-        rdx = stepx * rdx;
-        rdy = stepy * rdy;
+        dx = stepx * dx;
+        dy = stepy * dy;
         // cell position of the ray on the map (starting from the player position)
         let cx = ~~player.x;
         let cy = ~~player.y;
@@ -245,10 +243,9 @@ function drawWalls() {
             cy += stepy;
         }
 
-        // location of the ray collision on a solid surface
-        let rx, ry;
         // total time traveled by the ray
         let t = 0;
+
         // plane0 value of the cell visited by the ray
         let m0;
         // coordinate on the wall tile where the ray hit (0 <= tx <= 1)
@@ -264,43 +261,43 @@ function drawWalls() {
                 if (map1(cx, cy) === 98) {
                     isPushwall = true;
                     // pushwall
-                    let timer = wallTimers.find(function(obj) { return obj.x === cx && obj.y === cy; });
+                    const timer = wallTimers.find(function(obj) { return obj.x === cx && obj.y === cy; });
                     if (timer !== undefined) {
                         wallShift = timer.t / 64;
                         if (timer.dx !== 0) {
                             // wall moves horizontally
-                            if (rdx * rfy >= rdy * wallShift) {
+                            if (dx * rfy >= dy * wallShift) {
                                 // ray hits wall
-                                let dt = wallShift / rdx;
+                                let dt = wallShift / dx;
                                 t += dt;
-                                rfy -= dt * rdy;
+                                rfy -= dt * dy;
                                 rfx -= wallShift;
                             } else {
                                 // ray moves to next cell
                                 isPushwall = false;
-                                let dt = rfy / rdy;
+                                let dt = rfy / dy;
                                 t += dt;
                                 rfy = 1;
                                 cy += stepy;
-                                rfx -= dt * rdx;
+                                rfx -= dt * dx;
                                 continue;
                             }
                         } else {
                             // wall moves vertically
-                            if (rdy * rfx >= rdx * wallShift) {
+                            if (dy * rfx >= dx * wallShift) {
                                 // ray hits wall
-                                let dt = wallShift / rdy;
+                                let dt = wallShift / dy;
                                 t += dt;
-                                rfx -= dt * rdx;
+                                rfx -= dt * dx;
                                 rfy -= wallShift;
                             } else {
                                 // ray moves to next cell
                                 isPushwall = false;
-                                let dt = rfx / rdx;
+                                let dt = rfx / dx;
                                 t += dt;
                                 rfx = 1;
                                 cx += stepx;
-                                rfy -= dt * rdy;
+                                rfy -= dt * dy;
                                 continue;
                             }
                         }
@@ -337,11 +334,11 @@ function drawWalls() {
 
                 if (m0 % 2 === 0) {
                     // NS door
-                    if (rfx >= .5 && (rfx - .5) * rdy < rfy * rdx) {
+                    if (rfx >= .5 && (rfx - .5) * dy < rfy * dx) {
                         // ray hits the central door line
-                        let dt = (rfx - .5) / rdx;
+                        let dt = (rfx - .5) / dx;
                         t += dt;
-                        rfy -= dt * rdy;
+                        rfy -= dt * dy;
                         rfx = .5;
                         tx = stepy > 0 ? 1 - rfy : rfy;
                         tx -= doorShift;
@@ -364,11 +361,11 @@ function drawWalls() {
                             break;
                         }
                     }
-                    if (rfx * rdy >= rfy * rdx) {
+                    if (rfx * dy >= rfy * dx) {
                         // hit the side wall
-                        let dt = rfy / rdy;
+                        let dt = rfy / dy;
                         t += dt;
-                        rfx -= dt * rdx;
+                        rfx -= dt * dx;
                         rfy = 1;
                         cy += stepy;
                         textureIndex = 100;
@@ -376,19 +373,19 @@ function drawWalls() {
                         break;
                     } else {
                         // pass through
-                        let dt = rfx / rdx;
+                        let dt = rfx / dx;
                         t += dt;
-                        rfy -= dt * rdy;
+                        rfy -= dt * dy;
                         rfx = 1;
                         cx += stepx;
                     }
                 } else {
                     // EW door
-                    if (rfy >= .5 && (rfy - .5) * rdx < rfx * rdy) {
+                    if (rfy >= .5 && (rfy - .5) * dx < rfx * dy) {
                         // ray hits the central door line
-                        let dt = (rfy - .5) / rdy;
+                        let dt = (rfy - .5) / dy;
                         t += dt;
-                        rfx -= dt * rdx;
+                        rfx -= dt * dx;
                         rfy = .5;
                         tx = stepx > 0 ? 1 - rfx : rfx;
                         tx -= doorShift;
@@ -411,11 +408,11 @@ function drawWalls() {
                             break;
                         }
                     }
-                    if (rfy * rdx >= rfx * rdy) {
+                    if (rfy * dx >= rfx * dy) {
                         // hit the side wall
-                        let dt = rfx / rdx;
+                        let dt = rfx / dx;
                         t += dt;
-                        rfy -= dt * rdy;
+                        rfy -= dt * dy;
                         rfx = 1;
                         cx += stepx;
                         textureIndex = 101;
@@ -423,35 +420,33 @@ function drawWalls() {
                         break;
                     } else {
                         // pass through
-                        let dt = rfy / rdy;
+                        let dt = rfy / dy;
                         t += dt;
-                        rfx -= dt * rdx;
+                        rfx -= dt * dx;
                         rfy = 1;
                         cy += stepy;
                     }
                 }
             }
             // move to the next cell
-            if (rfx * rdy <= rfy * rdx) {
+            if (rfx * dy <= rfy * dx) {
                 // move to next cell horizontally
-                let dt = rfx / rdx;
+                let dt = rfx / dx;
                 t += dt;
                 rfx = 1;
                 cx += stepx;
-                rfy -= dt * rdy;
+                rfy -= dt * dy;
             } else {
                 // move to next cell vertically
-                let dt = rfy / rdy;
+                let dt = rfy / dy;
                 t += dt;
                 rfy = 1;
                 cy += stepy;
-                rfx -= dt * rdx;
+                rfx -= dt * dx;
             }
         }
 
         // compute ray location
-        rx = stepx > 0 ? cx + 1 - rfx : cx + rfx;
-        ry = stepy > 0 ? cy + 1 - rfy : cy + rfy;
         let h = wallHeight / (2 * t); // height of the line representing the wall on the current column
         zIndex[i] = t;
 
@@ -520,7 +515,7 @@ function drawThings() {
         let ty = ~~((pixelHeight - th) / 2);
         let index = t.spriteIndex;
         if (t.orientable) {
-            index += (~~(-4 * Math.atan2(t.y - player.y, t.x - player.x) / Math.PI + 12.5) - 2 * t.direction) % 8;
+            index += (Math.round(4 * Math.atan2(t.x - player.x, t.y - player.y) / Math.PI - t.direction) + 16) % 8;
         }
 
         drawSprite(index, tx, ty, th, t.rx);
