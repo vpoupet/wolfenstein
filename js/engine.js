@@ -140,7 +140,7 @@ function Animation(sprites, loop=false) {
  * @param blue {number} blue intensity in [0, 1)
  * @constructor
  */
-function Flash(red, green, blue) {
+function Flash(red, green, blue, duration = 6) {
     /**
      * Frames counter since flash effect started
      * @type {number}
@@ -161,6 +161,11 @@ function Flash(red, green, blue) {
      * @type {number}
      */
     this.blue = blue;
+    /**
+     * Duration of the flash in frames
+     * @type {number}
+     */
+    this.duration = duration;
 }
 
 

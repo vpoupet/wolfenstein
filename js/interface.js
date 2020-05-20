@@ -3,6 +3,17 @@
  * @type {{String: boolean}}
  */
 let pressedKeys = {};
+/**
+ * Dictionary of key mappings for movement
+ * Possible values :
+ *  - 'move forward'
+ *  - 'move backward'
+ *  - 'turn left'
+ *  - 'turn right'
+ *  - 'strafe left'
+ *  - 'strafe right'
+ * @type {{String: String}}
+ */
 let keymap = {
     'ArrowUp': 'move forward',
     'ArrowDown': 'move backward',
@@ -13,7 +24,6 @@ let keymap = {
     'q': 'strafe left',
     'd': 'strafe right',
 }
-
 /**
  * HTML Canvas in which the game view is drawn
  * @type {HTMLCanvasElement}
@@ -170,6 +180,10 @@ function startGame(level) {
 }
 
 
+/**
+ * Function called when user clicks on the game screen canvas
+ * (locks mouse pointer if it is not locked, shoots if already locked)
+ */
 function handleClick() {
     if (document.pointerLockElement === canvas) {
         player.shoot();
@@ -179,6 +193,9 @@ function handleClick() {
 }
 
 
+/**
+ * Function called when the mouse lock status changes (mouse pointer captured by game canvas)
+ */
 function handleLockChange() {
     if (document.pointerLockElement === canvas) {
         document.addEventListener('mousemove', handleMouseMove, false);
@@ -188,6 +205,9 @@ function handleLockChange() {
 }
 
 
+/**
+ * React to a movement of the mouse when locked in the game screen canvas
+ */
 function handleMouseMove(e) {
     player.turn(e.movementX * player.speed_a / 3);
 }

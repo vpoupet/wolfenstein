@@ -814,11 +814,11 @@ function update() {
     // update flashing palette
     if (flash !== undefined) {
         flash.timer += 1;
-        if (flash.timer <= 2) {
+        if (flash.timer <= flash.duration / 3) {
             flashPalette(flash.red / 2, flash.green / 2, flash.blue / 2);
-        } else if (flash.timer <= 4) {
+        } else if (flash.timer <= 2 * flash.duration / 3) {
             flashPalette(flash.red, flash.green, flash.blue);
-        } else if (flash.timer <= 6) {
+        } else if (flash.timer <= flash.duration) {
             flashPalette(flash.red / 2, flash.green / 2, flash.blue / 2);
         } else {
             flashPalette(0, 0, 0);
