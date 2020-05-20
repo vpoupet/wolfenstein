@@ -101,7 +101,7 @@ function Player() {
      * @param y {number} y-coordinate of the position
      * @returns {boolean} whether the location is valid for the player
      */
-    this.canMoveTo = function(x, y) {
+    this.canMoveTo = function (x, y) {
         let r = this.radius;
         let fx = x % 1;
         x = ~~x;
@@ -110,7 +110,7 @@ function Player() {
 
         if (plane2[x][y]) return false;
         if (fx < r) {
-            if (plane2[x- 1][y]) return false;
+            if (plane2[x - 1][y]) return false;
             if (fy < r && plane2[x - 1][y - 1]) return false;
             if (fy > 1 - r && plane2[x - 1][y + 1]) return false;
         }
@@ -128,7 +128,7 @@ function Player() {
      * Move forward
      * @param length {number} distance to move (use negative value to move backwards)
      */
-    this.move = function(length) {
+    this.move = function (length) {
         let oldx = ~~this.x;
         let oldy = ~~this.y;
         let x = this.x + this.dx * length;
@@ -151,7 +151,7 @@ function Player() {
      * Turn right
      * @param alpha {number} angle in radians to rotate (use negative value to turn left)
      */
-    this.turn = function(alpha) {
+    this.turn = function (alpha) {
         let dx = this.dx * Math.cos(alpha) - this.dy * Math.sin(alpha);
         this.dy = this.dx * Math.sin(alpha) + this.dy * Math.cos(alpha);
         this.dx = dx;
@@ -160,7 +160,7 @@ function Player() {
     /**
      * Activate a cell in front of the player (open/close door, push secret wall)
      */
-    this.activate = function() {
+    this.activate = function () {
         let x = ~~player.x;
         let y = ~~player.y;
         let dx = 0;
@@ -188,7 +188,7 @@ function Player() {
                 // silver-locked door
                 return;
             }
-            let timer = doorTimers.find(function(obj) {
+            let timer = doorTimers.find(function (obj) {
                 return obj.x === x && obj.y === y;
             });
             if (!timer) {
@@ -197,7 +197,7 @@ function Player() {
                     if ((dx > 0 && x - player.x <= player.radius) ||
                         (dx < 0 && player.x - x - 1 <= player.radius) ||
                         (dy > 0 && y - player.y <= player.radius) ||
-                        (dy < 0 && player.y - y - 1<= player.radius)) {
+                        (dy < 0 && player.y - y - 1 <= player.radius)) {
                         // player is too close to the door, the door cannot close
                         return;
                     } else {
@@ -209,7 +209,7 @@ function Player() {
             }
         } else if (m1 === 98) {
             // pushwall
-            let timer = wallTimers.find(function(obj) {
+            let timer = wallTimers.find(function (obj) {
                 return obj.x === x && obj.y === y;
             });
             if (!timer && map0(x + dx, y + dy) >= 106) {
@@ -226,7 +226,7 @@ function Player() {
      * @param x {number} integer x-coordinate of the cell
      * @param y {number} integer y-coordinate of the cell
      */
-    this.collect = function(x, y) {
+    this.collect = function (x, y) {
         for (let i = 0; i < things.length; i++) {
             let t = things[i];
             if (t.collectible && t.x === x + .5 && t.y === y + .5) {
@@ -257,7 +257,7 @@ function Player() {
     /**
      * Shoot straight in front of the player (kills the first enemy in the line)
      */
-    this.shoot = function() {
+    this.shoot = function () {
         if (this.weaponAnimation === undefined) {
             this.weaponAnimation = new Animation([422, 423, 424, 425]);
             let d = zIndex[pixelWidth / 2];
@@ -278,7 +278,7 @@ function Player() {
         }
     };
 
-    this.update = function() {
+    this.update = function () {
         if (this.weaponAnimation !== undefined) {
             let a = this.weaponAnimation;
             a.timer += 1;
@@ -307,7 +307,7 @@ function Player() {
  * @param blocking {boolean} whether the thing blocks player movement
  * @constructor
  */
-function Thing(x, y, spriteIndex, collectible=false, orientable=false, blocking=false) {
+function Thing(x, y, spriteIndex, collectible = false, orientable = false, blocking = false) {
     /**
      * Current x-coordinate on map
      * @type {number}
@@ -337,13 +337,13 @@ function Thing(x, y, spriteIndex, collectible=false, orientable=false, blocking=
      * Whether the thing blocks player movement
      * @type {boolean}
      */
-    this.blocking= blocking;
+    this.blocking = blocking;
 
     /**
      * Start executing a sprite animation (change current sprite at regular intervals)
      * @param animation
      */
-    this.startAnimation = function(animation) {
+    this.startAnimation = function (animation) {
         this.animation = animation;
         this.spriteIndex = animation.sprites[0];
     };
@@ -353,7 +353,7 @@ function Thing(x, y, spriteIndex, collectible=false, orientable=false, blocking=
      * - relative coordinates from player's perspective
      * - possible animation values
      */
-    this.update = function() {
+    this.update = function () {
         /**
          * Relative x-coordinate in the player's reference frame
          * @type {number}
@@ -399,10 +399,10 @@ function Thing(x, y, spriteIndex, collectible=false, orientable=false, blocking=
  * of the first sprite (front)
  * @param deathSprites {number[]} sprite indexes of the enemy's dying animation
  * @param orientable {boolean} whether or not the enemy has different sprites depending on orientation
- * @param direction {number} facing direction (0: north, 1: east, 2: south, 3: west)
+ * @param direction {number} facing direction (0: north, 2: east, 4: south, 6: west)
  * @constructor
  */
-function Enemy(x, y, spriteIndex, deathSprites, orientable=false, direction=0) {
+function Enemy(x, y, spriteIndex, deathSprites, orientable = false, direction = 0) {
     Thing.call(this, x, y, spriteIndex, false, orientable);
     /**
      * List of sprite indexes of the enemy's dying animation
@@ -425,7 +425,7 @@ function Enemy(x, y, spriteIndex, deathSprites, orientable=false, direction=0) {
     /**
      * Kill the enemy and start its dying animation
      */
-    this.die = function() {
+    this.die = function () {
         this.alive = false;
         this.orientable = false;
         this.startAnimation(new Animation(this.deathSprites));
@@ -717,10 +717,18 @@ function setupLevel() {
  */
 function update() {
     // update player position and direction
-    if (pressedKeys["ArrowRight"]) { player.turn(player.speed_a) }
-    if (pressedKeys["ArrowLeft"]) { player.turn(-player.speed_a) }
-    if (pressedKeys["ArrowUp"]) { player.move(player.speed) }
-    if (pressedKeys["ArrowDown"]) { player.move(-player.speed) }
+    if (pressedKeys["ArrowRight"]) {
+        player.turn(player.speed_a)
+    }
+    if (pressedKeys["ArrowLeft"]) {
+        player.turn(-player.speed_a)
+    }
+    if (pressedKeys["ArrowUp"]) {
+        player.move(player.speed)
+    }
+    if (pressedKeys["ArrowDown"]) {
+        player.move(-player.speed)
+    }
 
     // update things
     for (let i = 0; i < things.length; i++) {
