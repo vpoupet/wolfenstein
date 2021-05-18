@@ -1,6 +1,6 @@
 # Wolfenstein 3D game file specifications
 
-Most of the information on this page is taken from [Gaarabis's page](http://gaarabis.free.fr/_sites/specs/wlspec_index.html) and the [Wolfenstein wiki](https://wolfenstein.fandom.com/wiki/Wolfenstein_Wiki).
+Most of the information on this page is taken from Gaarabis's page (no longer available) and the [Wolfenstein wiki](https://wolfenstein.fandom.com/wiki/Wolfenstein_Wiki).
 
 Three files are used in this project:
 - `VSWAP.WL6` contains the wall textures, the sprite graphics (also the sound effects but not used in this project);
