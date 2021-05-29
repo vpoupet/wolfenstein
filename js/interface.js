@@ -12,18 +12,18 @@ let pressedKeys = {};
  *  - 'turn right'
  *  - 'strafe left'
  *  - 'strafe right'
- * @type {{String: String}}
  */
 let keymap = {
-    'ArrowUp': 'move forward',
-    'ArrowDown': 'move backward',
-    'ArrowLeft': 'turn left',
-    'ArrowRight': 'turn right',
-    'z': 'move forward',
-    's': 'move backward',
-    'q': 'strafe left',
-    'd': 'strafe right',
-}
+    ArrowUp: 'moveForward',
+    ArrowDown: 'moveBackward',
+    ArrowLeft: 'turnLeft',
+    ArrowRight: 'turnRight',
+    z: 'moveForward',
+    s: 'moveBackward',
+    q: 'strafeLeft',
+    d: 'strafeRight',
+};
+let mouseSensitivity = .3;
 /**
  * HTML Canvas in which the game view is drawn
  * @type {HTMLCanvasElement}
@@ -44,6 +44,20 @@ let imageData;
  * @type {DataView}
  */
 let pixels;
+
+let socket;
+
+function randomString(len) {
+    const charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let randomString = '';
+    for (let i = 0; i < len; i++) {
+        const r = Math.floor(Math.random() * charSet.length);
+        randomString += charSet.substring(r, r + 1);
+    }
+    return randomString;
+}
+
+const netId = randomString(10);
 
 /**
  * Update the score information under the game screen
@@ -209,7 +223,7 @@ function handleLockChange() {
  * React to a movement of the mouse when locked in the game screen canvas
  */
 function handleMouseMove(e) {
-    player.turn(e.movementX * player.speed_a / 3);
+    player.turnAngle += e.movementX * mouseSensitivity;
 }
 
 
@@ -219,4 +233,29 @@ window.onload = function () {
         document.getElementById("splash_screen").style['display'] = 'none';
         document.getElementById("episode_select").style['display'] = 'block';
     });
+
+    let get_parameters = {};
+    if (window.location.search !== "") {
+        const parameters = window.location.search.substr(1).split('&');
+        for (const p of parameters) {
+            let [k, v] = p.split('=');
+            get_parameters[k] = v;
+        }
+    }
+
+    if (get_parameters['gid']) {
+        socket = new WebSocket("ws://127.0.0.1:8000/cs/" + get_parameters['gid']);
+        socket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            updateGameState(data);
+        }
+    }
 };
+
+function connect(gid) {
+    socket = new WebSocket(`ws://games.zanapher.fr/cs/wolf_${gid}/`);
+    socket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        updateGameState(data);
+    }
+}

@@ -39,6 +39,7 @@ let doorTimers;
  */
 let wallTimers;
 
+let opponentPlayers = {};
 
 /**
  * Class representation of the game player character
@@ -95,6 +96,41 @@ function Player() {
      * @type {boolean}
      */
     this.goldKey = false;
+    /**
+     * Whether the player should move forward on next frame
+     * @type {boolean}
+     */
+    this.moveForward = false;
+    /**
+     * Whether the player should move backward on next frame
+     * @type {boolean}
+     */
+    this.moveBackward = false;
+    /**
+     * Whether the player should strafe left on next frame
+     * @type {boolean}
+     */
+    this.strafeLeft = false;
+    /**
+     * Whether the player should strafe right on next frame
+     * @type {boolean}
+     */
+    this.strafeRight = false;
+    /**
+     * Whether the player should turn to the left on next frame
+     * @type {boolean}
+     */
+    this.turnLeft = false;
+    /**
+     * Whether the player should turn to the right on next frame
+     * @type {boolean}
+     */
+    this.turnRight = false;
+    /**
+     * Angle by which the player should turn on next frame (normalized, will be multiplied by `this.speed_a`)
+     * @type {number}
+     */
+    this.turnAngle = 0;
     /**
      * Check whether the player can go to the given location
      * @param x {number} x-coordinate of the position
@@ -280,6 +316,62 @@ function Player() {
     };
 
     this.update = function () {
+        let changed = false;
+        let movement = new Set();
+        for (let key in keymap) {
+            if (pressedKeys[key]) {
+                movement.add(keymap[key]);
+            }
+        }
+        // update player direction
+        if (movement.has('turnRight')) {
+            this.turnAngle += 1;
+        }
+        if (movement.has('turnLeft')) {
+            this.turnAngle -= 1;
+        }
+        if (this.turnAngle !== 0) {
+            player.turn(this.turnAngle * this.speed_a);
+            this.turnAngle = 0;
+            changed = true;
+        }
+        // update player position
+        let forward = 0;
+        let sideways = 0;
+        if (movement.has('moveForward')) {
+            forward += this.speed;
+        }
+        if (movement.has('moveBackward')) {
+            forward -= this.speed;
+        }
+        if (movement.has('strafeLeft')) {
+            sideways -= this.speed;
+        }
+        if (movement.has('strafeRight')) {
+            sideways += this.speed;
+        }
+        if (forward !== 0) {
+            if (sideways !== 0) {
+                player.move(forward / Math.sqrt(2), sideways / Math.sqrt(2));
+            } else {
+                player.move(forward);
+            }
+            changed = true;
+        } else if (sideways !== 0) {
+            player.move(0, sideways);
+            changed = true;
+        }
+
+        if (socket && socket.readyState === 1 && changed) {
+            socket.send(JSON.stringify({
+                'id': netId,
+                'x': player.x,
+                'y': player.y,
+                'dx': player.dx,
+                'dy': player.dy,
+            }))
+        }
+
         if (this.weaponAnimation !== undefined) {
             let a = this.weaponAnimation;
             a.timer += 1;
@@ -717,47 +809,6 @@ function setupLevel() {
  * This function is called at each frame.
  */
 function update() {
-    // update player position and direction
-    let movement = new Set();
-    let turnAngle = 0;
-    let moveForward = 0;
-    let moveSideways = 0;
-    for (let key in keymap) {
-        if (pressedKeys[key]) {
-            movement.add(keymap[key]);
-        }
-    }
-    if (movement.has("turn right")) {
-        turnAngle += player.speed_a;
-    }
-    if (movement.has("turn left")) {
-        turnAngle -= player.speed_a;
-    }
-    if (movement.has("move forward")) {
-        moveForward += player.speed;
-    }
-    if (movement.has("move backward")) {
-        moveForward -= player.speed;
-    }
-    if (movement.has("strafe right")) {
-        moveSideways += player.speed;
-    }
-    if (movement.has("strafe left")) {
-        moveSideways -= player.speed;
-    }
-    if (turnAngle !== 0) {
-        player.turn(turnAngle);
-    }
-    if (moveForward !== 0) {
-        if (moveSideways !== 0) {
-            player.move(moveForward / Math.sqrt(2), moveSideways / Math.sqrt(2));
-        } else {
-            player.move(moveForward);
-        }
-    } else {
-        player.move(0, moveSideways);
-    }
-
     // update things
     for (let i = 0; i < things.length; i++) {
         things[i].update();
@@ -844,4 +895,17 @@ function update() {
  */
 function loadNextLevel() {
     loadLevel(currentLevel + 1);
+}
+
+function updateGameState(data) {
+    const id = data.id;
+    if (id !== netId) {
+        if (!opponentPlayers.hasOwnProperty(id)) {
+            opponentPlayers[id] = new Enemy(0, 0, 238, [279, 280, 281, 283, 284], true, 0);
+            things.push(opponentPlayers[id]);
+        }
+        opponentPlayers[id].x = data.x;
+        opponentPlayers[id].y = data.y;
+        opponentPlayers[id].direction = (4 * Math.atan2(data.dx, data.dy) / Math.PI + 12) % 8;
+    }
 }
