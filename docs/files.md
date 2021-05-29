@@ -1,6 +1,6 @@
 # Wolfenstein 3D game file specifications
 
-Most of the information on this page is taken from [Gaarabis's page](http://gaarabis.free.fr/_sites/specs/wlspec_index.html) and the [Wolfenstein wiki](https://wolfenstein.fandom.com/wiki/Wolfenstein_Wiki).
+Most of the information on this page is taken from Gaarabis's page (no longer available) and the [Wolfenstein wiki](https://wolfenstein.fandom.com/wiki/Wolfenstein_Wiki).
 
 Three files are used in this project:
 - `VSWAP.WL6` contains the wall textures, the sprite graphics (also the sound effects but not used in this project);
@@ -230,7 +230,7 @@ The data in this file is not compressed.
 | UInt32LE[n]   | Address at which each chunk starts (n = number of chunks)
 | UInt16LE[n]   | Byte length of each chunk (n = number of chunks)
 
-**Note:** The game uses a hard-coded color palette for wall textures and sprites. The palette contains 256 colors so each pixel in the textures is described as a single byte (the palette index for the pixel's color). See array `gamePalette` in `js/engine.js` or [Garaabis's page](http://gaarabis.free.fr/_sites/specs/files/wlspec_APA.html#APA4) for the actual RGBA values.
+**Note:** The game uses a hard-coded color palette for wall textures and sprites. The palette contains 256 colors so each pixel in the textures is described as a single byte (the palette index for the pixel's color). See array `gamePalette` in `js/engine.js` for the actual RGBA values.
 
 ### Walls
 
@@ -254,15 +254,13 @@ The data in a sprite chunk is organized as follows:
 | UInt8[?]      | Pixel pool: Palette indexes for all solid pixels of the sprite (size unknown when decoding)
 | UInt16[?]     | Array of values describing all posts in the sprite (size unknown when decoding)
 
-*Note:* On [Garaabis's page](http://gaarabis.free.fr/_sites/specs/files/wlspec_VSW.html#VSW2) most values in the "SPRITES" section are incorrectly typed as UInt32LE instead of UInt16LE.
-
 The posts are described column by column, from top to bottom. Each post is represented by 3 UInt16LE values. The first is twice the index of the row where the post ends (first row after the post) and the third is twice the index of the row at which the post starts. A column may have several posts (or none) and the end of a column's posts is indicated by the value 0 which is not a valid post end row (in which case only one value is read instead of 3).
 
 All solid pixel values for the sprite (palette indexes) are written consecutively in the "pixel pool" section of the chunk in order from left to right and top to bottom.
 
 Sprites are decoded by function `drawSprite` in `js/engine.js`.
 
-**Note:** Posts are described by 3 values but the signification of the central one remains a mystery. All sources that I found (see [this](http://gaarabis.free.fr/_sites/specs/files/wlspec_VSW.html#VSW2) and [that](https://devinsmith.net/backups/bruce/wolf3d.html)) concur that it is probably some kind of offset to a segment of the pixel pool but none fully understands it. It is possible to ignore this value when decoding sprites if all posts of all columns are decoded sequentially from the first (in that case values are read from the pixel pool in order from the start). However, when doing so there is no need to read the offsets to the first post of each column. The fact that these offsets are in the file shows that the developers wanted a way to decode the posts of a given column without decoding the previous ones, and they most likely use the mystery value to jump to the corresponding position in the pixel pool.
+**Note:** Posts are described by 3 values but the signification of the central one remains a mystery. All sources that I found (see [that](https://devinsmith.net/backups/bruce/wolf3d.html)) concur that it is probably some kind of offset to a segment of the pixel pool but none fully understands it. It is possible to ignore this value when decoding sprites if all posts of all columns are decoded sequentially from the first (in that case values are read from the pixel pool in order from the start). However, when doing so there is no need to read the offsets to the first post of each column. The fact that these offsets are in the file shows that the developers wanted a way to decode the posts of a given column without decoding the previous ones, and they most likely use the mystery value to jump to the corresponding position in the pixel pool.
 
 Skipping columns entirely saves some time when rendering sprites that are partially hidden behind walls. Without this ability, posts from hidden columns still need to be decoded to count the number of pixels per column and skip the corresponding entries in the pixel pool.
 
