@@ -353,7 +353,7 @@ D7 03 74 00 00 00 80 00 DD 03 74 00 00 00 80 00 E3 03 74 00 00 00 80 00 E9 03 74
 EF 03 74 00 7E 00 EE 03 7C 00 00 00 78 00 F2 03 76 00 00 00
 ```
 
-These start with the posts from the first "solid" column (index 7). First values (UInt16LE) are 120, 59, 100, 0. This means that the first post starts at row 55 (included) and ends at row 60 (excluded). The colors for these pixels are the first 5 bytes of the pixel pool (`3D 3D 3D 3C 3C`). The value 0 indicates that there are no more posts in this column:
+These start with the posts from the first "solid" column (index 7). First values (UInt16LE) are 120, 59, 110, 0. This means that the first post starts at row 110 / 2 = 55 (included) and ends at row 120 / 2 = 60 (excluded). The colors for these pixels are the first 5 bytes of the pixel pool (`3D 3D 3D 3C 3C`). The value 0 indicates that there are no more posts in this column:
 
 ![Column 7](images/col7.png)
 
