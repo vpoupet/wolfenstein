@@ -77,7 +77,7 @@ The address for each level in `MAPHEAD.WL6` points to a 42-bytes header in `GAME
 
 ### Plane 0
 
-Plane 0 contains structural information for each cell of the level. Each cell can either be a wall, a door, an elevator (end of level) of a walkable tile (floor).
+Plane 0 contains structural information for each cell of the level. Each cell can either be a wall, a door, an elevator (end of level) or a walkable tile (floor).
 
 The value of a wall is used to determine the graphic texture in the `VSWAP.WL6` file to use by the engine when representing the wall. Each door type has two indexes to indicate its direction. An even index corresponds to a door along the North/South axis (player moves through it along the East/West axis) and an odd index to a door along the East/West axis.
 
