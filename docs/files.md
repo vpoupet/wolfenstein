@@ -365,6 +365,6 @@ Column 9 (values 120, 113, 66, 0) is similar to the previous one with a single p
 
 ![Column 9](images/col9.png)
 
-Column 10 is more interesting. Values are 74, 138, 70, 90, 132, 86, 122, 129, 96, 0. This describes 3 posts, from 37 to 35, from 43 to 45 and from 48 to 61. Two bytes are read from the pixel pool for the first post (`3E 3F`), two more for the second post (`3E 3F`) and 13 for the last post (`3C 3C 3E D9 D9 D9 D9 D9 3C D6 D6 1D 1A`):
+Column 10 is more interesting. Values are 74, 138, 70, 90, 132, 86, 122, 129, 96, 0. This describes 3 posts, from 35 to 37, from 43 to 45 and from 48 to 61. Two bytes are read from the pixel pool for the first post (`3E 3F`), two more for the second post (`3E 3F`) and 13 for the last post (`3C 3C 3E D9 D9 D9 D9 D9 3C D6 D6 1D 1A`):
   
 ![Column 10](images/col10.png)
