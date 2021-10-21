@@ -2,12 +2,12 @@
  * Game pixels rendered on screen (width)
  * @type {number}
  */
-let pixelWidth = 320;
+let pixelWidth = 1280;
 /**
  * Game pixels rendered on screen (height)
  * @type {number}
  */
-let pixelHeight = 200;
+let pixelHeight = 800;
 /**
  * Field of vision
  * @type {number}
