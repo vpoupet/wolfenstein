@@ -169,7 +169,7 @@ Module['onRuntimeInitialized'] = function () {
     viewImageData = new ImageData(viewArray, WIDTH, HEIGHT);
 
     let map_ptr = Module.ccall('get_map_ptr', 'number', [], []);
-    plane0 = Module.HEAP8.subarray(map_ptr, map_ptr + 4096);
+    plane0 = Module.HEAPU8.subarray(map_ptr, map_ptr + 4096);
     update_view = Module.cwrap('update_view', 'void', ['number', 'number', 'number', 'number']);
     draw();
 };
