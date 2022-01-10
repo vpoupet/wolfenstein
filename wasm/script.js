@@ -151,7 +151,9 @@ function draw() {
     if (pressedKeys["ArrowDown"]) { player.move(-player.speed) }
 
     // draw walls visible game elements
-    update_view(player.x, player.y, player.dx, player.dy);
+    for (let i = 0; i < 16; i++) {
+        update_view(player.x, player.y, player.dx, player.dy);
+    }
 
     // draw to canvas
     screen_context.putImageData(viewImageData, 0, 0);

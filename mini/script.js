@@ -2,12 +2,12 @@
  * Game pixels rendered on screen (width)
  * @type {number}
  */
-let pixelWidth = 1280;
+let pixelWidth = 640;
 /**
  * Game pixels rendered on screen (height)
  * @type {number}
  */
-let pixelHeight = 800;
+let pixelHeight = 400;
 /**
  * Field of vision
  * @type {number}
@@ -136,7 +136,7 @@ function loadResources(onload) {
 
     // load game files
     loadBytes(
-        "00.map",
+        "00-copy.map",
         function() {
             plane0 = new DataView(this.response);
             checkReady();
@@ -287,7 +287,9 @@ function draw() {
     if (pressedKeys["ArrowDown"]) { player.move(-player.speed) }
 
     // draw walls visible game elements
-    drawWalls();
+    for (let i = 0; i < 16; i++) {
+        drawWalls();
+    }
 
     // draw to canvas
     context.putImageData(imageData, 0, 0);
@@ -346,18 +348,49 @@ function drawWalls() {
             m0 = map0(cx, cy);
             if (m0 <= 63) {
                 // hit a wall
-                if (rfx === 1) {
-                    // NS wall
-                    textureIndex = 2 * m0 - 1;
-                    // fix texture orientation depending on ray direction
-                    tx = stepx * stepy > 0 ? 1 - rfy : rfy;
+                if (m0 === 0x3C || m0 === 0x3D) {
+                    // diagonal wall
+                    let dx, dy, x1, y1;
+                    if (m0 === 0x3C) {
+                        dx = -1;
+                        dy = 1;
+                        x1 = cx + 1;
+                        y1 = cy;
+                    } else {
+                        dx = 1;
+                        dy = 1;
+                        x1 = cx;
+                        y1 = cy;
+                    }
+                    const vx = rdx * stepx;
+                    const vy = rdy * stepy;
+                    const x0 = cx + (stepx >= 0 ? 1 - rfx : rfx);
+                    const y0 = cy + (stepy >= 0 ? 1 - rfy : rfy);
+                    const det = -vx * dy + vy * dx;
+                    if (det !== 0) {
+                        const lambda = (-vy * (x1 - x0) + vx * (y1 - y0)) / det;
+                        if (0 <= lambda && lambda <= 1) {
+                            const dt = (-dy * (x1 - x0) + dx * (y1 - y0)) / det;
+                            t += dt;
+                            tx = lambda;
+                            textureIndex = 64;
+                            break;
+                        }
+                    }
                 } else {
-                    // EW wall
-                    textureIndex = 2 * m0 - 2;
-                    // fix texture orientation depending on ray direction
-                    tx = stepx * stepy < 0 ? 1 - rfx : rfx;
+                    if (rfx === 1) {
+                        // NS wall
+                        textureIndex = 2 * m0 - 1;
+                        // fix texture orientation depending on ray direction
+                        tx = stepx * stepy > 0 ? 1 - rfy : rfy;
+                    } else {
+                        // EW wall
+                        textureIndex = 2 * m0 - 2;
+                        // fix texture orientation depending on ray direction
+                        tx = stepx * stepy < 0 ? 1 - rfx : rfx;
+                    }
+                    break;
                 }
-                break;
             }
             // move to the next cell
             if (rfx * rdy <= rfy * rdx) {
@@ -423,7 +456,7 @@ window.onload = function () {
 
     // prepare some variables
     wallHeight = pixelWidth / (2 * fov);
-    player = new Player(29.5, 57.5, 1, 0);
+    player = new Player(31.5, 33.5, 1, 0);
 
     // monitor key presses
     document.onkeydown = function (e) {
